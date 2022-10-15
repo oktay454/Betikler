@@ -20,9 +20,9 @@ case "$1" in
 esac
 
 # Apache Tomcat Sürümleri
-TOMCAT_100="https://dlcdn.apache.org/tomcat/tomcat-10/v10.0.23/bin/apache-tomcat-10.0.23.tar.gz"
-TOMCAT_90="https://dlcdn.apache.org/tomcat/tomcat-9/v9.0.65/bin/apache-tomcat-9.0.65.tar.gz"
-TOMCAT_85="https://dlcdn.apache.org/tomcat/tomcat-8/v8.5.82/bin/apache-tomcat-8.5.82.tar.gz"
+TOMCAT_100="https://dlcdn.apache.org/tomcat/tomcat-10/v10.0.27/bin/apache-tomcat-10.0.27.tar.gz"
+TOMCAT_90="https://dlcdn.apache.org/tomcat/tomcat-9/v9.0.68/bin/apache-tomcat-9.0.68.tar.gz"
+TOMCAT_85="https://dlcdn.apache.org/tomcat/tomcat-8/v8.5.83/bin/apache-tomcat-8.5.83.tar.gz"
 
 # Gerekli paketler denetlenip kuruluyor
 test -z $(command -v wget) && apt install -y wget
