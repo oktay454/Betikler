@@ -6,9 +6,11 @@ DC_PASS="Passw0rd!"
 STANDALONE_USER="administrator" # Even if it is in the administrator group, there is an authorization problem other than the Administrator user.
 STANDALONE_PASS="Passw0rd!"
 
-VAR_DIR="/usr/local/healt-audit"
-DATA_DIR="/var/lib/healt-audit"
-SSH_KEY="${DATA_DIR}/ssh-key/healt-audit-priv-key"
+APP_NAME="health-audit"
+
+VAR_DIR="/usr/local/${APP_NAME}"
+DATA_DIR="/var/lib/${APP_NAME}"
+SSH_KEY="${DATA_DIR}/ssh-key/${APP_NAME}-priv-key"
 PSSCRIPS="${VAR_DIR}/psscripts"
 
 #LINUX_LIST="${DATA_DIR}/linux-list"
@@ -20,9 +22,9 @@ ACCESS_DOMAIN="${DATA_DIR}/access-domain"
 ACCESS_STANDALONE="${DATA_DIR}/access-standalone"
 MACHINE_LIST="${DATA_DIR}/machine-list"
 
-ACTIVE_LIST="/tmp/healt-audit.active"
-PROCESS_IDS_LIST="/tmp/healt-audit.ids"
-PREFIX_TEMP_DIR="healt-audit"
+ACTIVE_LIST="/tmp/${APP_NAME}.active"
+PROCESS_IDS_LIST="/tmp/${APP_NAME}.ids"
+PREFIX_TEMP_DIR="${APP_NAME}"
 
 function CreateNTLMAccessFile()
 {
