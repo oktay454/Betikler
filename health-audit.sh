@@ -99,7 +99,7 @@ function CheckInsideHostsFile()
 
 function FinalCleaning()
 {
-	rm -rf "${ACTIVE_LIST}" "${ProcessIDsList}" "/tmp/${PREFIX_TEMP_DIR}.*"
+	rm -rf "${ACTIVE_LIST}" "${PROCESS_ID_LIST}" "/tmp/${PREFIX_TEMP_DIR}.*"
 }
 
 function KeepProcessID()
