@@ -23,7 +23,7 @@ ACCESS_STANDALONE="${DATA_DIR}/access-standalone"
 MACHINE_LIST="${DATA_DIR}/machine-list"
 
 ACTIVE_LIST="/tmp/${APP_NAME}.active"
-PROCESS_IDS_LIST="/tmp/${APP_NAME}.ids"
+PROCESS_ID_LIST="/tmp/${APP_NAME}.ids"
 PREFIX_TEMP_DIR="${APP_NAME}"
 
 function CreateNTLMAccessFile()
