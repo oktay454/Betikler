@@ -13,11 +13,6 @@ DATA_DIR="/var/lib/${APP_NAME}"
 SSH_KEY="${DATA_DIR}/ssh-key/${APP_NAME}-priv-key"
 PSSCRIPS="${VAR_DIR}/psscripts"
 
-#LINUX_LIST="${DATA_DIR}/linux-list"
-#VMWARE_LIST="${DATA_DIR}/vmware-list"
-#STANDALONE_LIST="${DATA_DIR}/standalone-list"
-#DOMAIN_LIST="${DATA_DIR}/domain-list"
-
 ACCESS_DOMAIN="${DATA_DIR}/access-domain"
 ACCESS_STANDALONE="${DATA_DIR}/access-standalone"
 MACHINE_LIST="${DATA_DIR}/machine-list"
@@ -114,13 +109,13 @@ function DeleteProcessID()
 
 function Preliminary()
 {
-	# Makine bilgilerini edinme
+	# Obtaining machine information
 	IP="$(awk -F "," '{print $1}' <<< ${1})"
 	HNAME="$(awk -F "," '{print $2}' <<< ${1})"
 	MACHINE_TYPE="$(awk -F "," '{print $3}' <<< ${1})"
 	PORT="$(awk -F "," '{print $4}' <<< ${1})"
 
-	# Canlılık ve bağlantı denetimleri
+	# Liveness and connectivity checks
 	CheckLivesViaPing ${IP} || return 1
 	case "${MACHINE_TYPE}" in
 		domain|stanalone)
@@ -135,14 +130,14 @@ function Preliminary()
 	
 	case "${MACHINE_TYPE}" in
 		domain)
-			CreateNTLMAccessFile "${ACCESS_DOMAIN}" "${DC_USER}" "${DC_PASS}"
-			AddToList "${HNAME}" "${ACCESS_DOMAIN}"
 			ACCESS="${ACCESS_DOMAIN}"
+			test -f "${ACCESS}" || CreateNTLMAccessFile "${ACCESS}" "${DC_USER}" "${DC_PASS}"
+			AddToList "${HNAME}" "${ACCESS}"
 			;;
 		standalone)
-			CreateNTLMAccessFile "${ACCESS_STANDALONE}" "${STANDALONE_USER}" "${STANDALONE_PASS}"
-			AddToList "${HNAME}" "${ACCESS_STANDALONE}"
 			ACCESS="${ACCESS_STANDALONE}"
+			test -f "${ACCESS}" || CreateNTLMAccessFile "${ACCESS}" "${STANDALONE_USER}" "${STANDALONE_PASS}"
+			AddToList "${HNAME}" "${ACCESS}"
 			;;
 		*)
 			return 1
@@ -169,25 +164,25 @@ function StartAudit()
 
 function StartWindowsAudit()
 {
-	# Makinede çalışacak komutları bu işlevden tetikliyoruz.
-	
-	#İşlev bittiğinde PID kaydını silmesi için.
+	#We trigger the commands to run on the machine from this function.
+
+	# To clear the PID register when the function is finished.
 	DeleteProcessID "${HNAME}"
 }
 
 function StartLinuxAudit()
 {
-	# Makinede çalışacak komutları bu işlevden tetikliyoruz.
-	
-	#İşlev bittiğinde PID kaydını silmesi için.
+	#We trigger the commands to run on the machine from this function.
+
+	# To clear the PID register when the function is finished.
 	DeleteProcessID "${HNAME}"
 }
 
 function StartVMWareAudit()
 {
-	# Makinede çalışacak komutları bu işlevden tetikliyoruz.
-	
-	#İşlev bittiğinde PID kaydını silmesi için.
+	#We trigger the commands to run on the machine from this function.
+
+	# To clear the PID register when the function is finished.
 	DeleteProcessID "${HNAME}"
 }
 
@@ -202,6 +197,8 @@ function WaitForProcessesToFinish()
 
 function MainProcess()
 {
+	rm -rf "${DATA_DIR}" "${ACCESS_DOMAIN}" "${ACCESS_STANDALONE}"
+	mkdir -p "${DATA_DIR}"
 	for MACHINE_INFO in $(cat ${MACHINE_LIST})
 	do
 		Preliminary "${MACHINE_INFO}" || continue
