@@ -16,6 +16,7 @@ PSSCRIPS="${VAR_DIR}/psscripts"
 ACCESS_DOMAIN="${DATA_DIR}/access-domain"
 ACCESS_STANDALONE="${DATA_DIR}/access-standalone"
 MACHINE_LIST="${DATA_DIR}/machine-list"
+MACHINE_NUMBER="$(cat "${MACHINE_LIST}" | wc -l)"
 
 ACTIVE_LIST="/tmp/${APP_NAME}.active"
 PROCESS_ID_LIST="/tmp/${APP_NAME}.ids"
@@ -43,7 +44,7 @@ function RunCommandViaWinRM()
 function RunCommandViaSSH()
 {
 	test -z ${3} && local SSH_PORT=22
-	ssh -p ${SSH_PORT} -i "${SSH_KEY}" -o StrictHostKeyChecking=no root@${1} -- "${2}"
+	ssh -p ${SSH_PORT} -i "${SSH_KEY}" -o StrictHostKeyChecking=yes "${4}" root@${1} -- "${2}"
 }
 
 function CopyFilesViaWinRM()
@@ -54,7 +55,7 @@ function CopyFilesViaWinRM()
 function CopyFilesViaSSH()
 {
 	test -z ${4} && local SSH_PORT=22
-	scp -P ${SSH_PORT} -i "${SSH_KEY}" -o StrictHostKeyChecking=no root@${1} "${2}" "${3}"
+	scp -P ${SSH_PORT} -i "${SSH_KEY}" -o StrictHostKeyChecking=yes "${5}" root@${1} "${2}" "${3}"
 }
 function AddToList()
 {
@@ -80,7 +81,7 @@ function CheckLivesViaWinRM()
 function CheckLivesWithSSH()
 {
 	test -z ${2} && local SSH_PORT=22
-	ssh -p ${SSH_PORT} -i "${SSH_KEY}" -o StrictHostKeyChecking=no root@${1} -- whoami 2>&1 > /dev/null
+	ssh -p ${SSH_PORT} -i "${SSH_KEY}" - -o StrictHostKeyChecking=yes "${3}" root@${1} -- whoami 2>&1 > /dev/null
 
 function AddHostsFile()
 {
@@ -99,12 +100,17 @@ function FinalCleaning()
 
 function KeepProcessID()
 {
-	printf "${1},${2}\n" >> "${ProcessIDsList}"
+	printf "${1},${2}\n" >> "${PROCESS_ID_LIST}"
 }
 
 function DeleteProcessID()
 {
-	sed -i "d/${1}$/g" "${ProcessIDsList}"
+	sed -i "d/${1}$/g" "${PROCESS_ID_LIST}"
+}
+
+function FetchFromMachineList()
+{
+	sed -n ${1}p "${MACHINE_LIST}"
 }
 
 function Preliminary()
@@ -114,6 +120,7 @@ function Preliminary()
 	HNAME="$(awk -F "," '{print $2}' <<< ${1})"
 	MACHINE_TYPE="$(awk -F "," '{print $3}' <<< ${1})"
 	PORT="$(awk -F "," '{print $4}' <<< ${1})"
+	SSH_OPTIONS="$(awk -F "," '{print $5}' <<< ${1})"
 
 	# Liveness and connectivity checks
 	CheckLivesViaPing ${IP} || return 1
@@ -121,7 +128,7 @@ function Preliminary()
 		domain|stanalone)
 			CheckLivesViaWinRM "${HNAME}";;
 		linux|vmware)
-			CheckLivesViaSSH "${IP}" "${PORT}";;
+			CheckLivesViaSSH "${IP}" "${PORT}" "${SSH_OPTIONS}";;
 		*)
 			return 1
 	esac
@@ -140,7 +147,7 @@ function Preliminary()
 			AddToList "${HNAME}" "${ACCESS}"
 			;;
 		*)
-			return 1
+			;;
 	esac
 }
 
@@ -164,7 +171,8 @@ function StartAudit()
 
 function StartWindowsAudit()
 {
-	#We trigger the commands to run on the machine from this function.
+	# We trigger the commands to run on the machine from this function.
+
 
 	# To clear the PID register when the function is finished.
 	DeleteProcessID "${HNAME}"
@@ -172,7 +180,8 @@ function StartWindowsAudit()
 
 function StartLinuxAudit()
 {
-	#We trigger the commands to run on the machine from this function.
+	# We trigger the commands to run on the machine from this function.
+
 
 	# To clear the PID register when the function is finished.
 	DeleteProcessID "${HNAME}"
@@ -180,7 +189,8 @@ function StartLinuxAudit()
 
 function StartVMWareAudit()
 {
-	#We trigger the commands to run on the machine from this function.
+	# We trigger the commands to run on the machine from this function.
+
 
 	# To clear the PID register when the function is finished.
 	DeleteProcessID "${HNAME}"
@@ -190,7 +200,7 @@ function WaitForProcessesToFinish()
 {
 	while true
 	do
-		test ! -s "${ProcessIDsList}" && break
+		test ! -s "${PROCESS_ID_LIST}" && break
 		sleep 1
 	done
 }
@@ -199,12 +209,16 @@ function MainProcess()
 {
 	rm -rf "${DATA_DIR}" "${ACCESS_DOMAIN}" "${ACCESS_STANDALONE}"
 	mkdir -p "${DATA_DIR}"
-	for MACHINE_INFO in $(cat ${MACHINE_LIST})
+	T=1
+
+	while [ ${T} -le ${MACHINE_NUMBER} ]
 	do
-		Preliminary "${MACHINE_INFO}" || continue
+		Preliminary "$(FetchFromMachineList ${T})" || [[ T=$((T+1)) && continue ]]
 		StartAudit
-		WaitForProcessesToFinish
+		T=$((T+1))
 	done
+	
+	WaitForProcessesToFinish
 }
 
 MainProcess
