@@ -1,8 +1,10 @@
 #!/bin/bash
 
-IP_LIST="/root/ip-liste"
-ACCESS_FILE="/root/erisim-domain"
-WORK_DIR="/var/lib/taliaoppy/workdir"
+test -z ${APP_NAME} && APP_NAME='health-audit'
+
+test -z ${IP_LIST} && IP_LIST=="/root/ip-liste"
+test -z ${ACCESS_FILE} && ACCESS_FILE="/root/erisim-domain"
+test -z ${WORK_DIR} && WORK_DIR="/var/lib/${APP_NAME}/workdir"
 
 STR_SUCCESS="Success"
 STR_ERROR="ERROR"
