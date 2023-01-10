@@ -6,7 +6,7 @@ test -z ${DC_PASS} && DC_PASS="Passw0rd!"
 test -z ${STANDALONE_USER} && STANDALONE_USER="administrator" # Even if it is in the administrator group, there is an authorization problem other than the Administrator user.
 test -z ${STANDALONE_PASS} && STANDALONE_PASS="Passw0rd!"
 
-test -z ${APP_NAME} && APP_NAME='health-audit'
+test -z ${APP_NAME} && APP_NAME='mufettis'
 
 VAR_DIR="/usr/local/${APP_NAME}"
 DATA_DIR="/var/lib/${APP_NAME}"
@@ -31,7 +31,7 @@ function CPUUsage()
 function MemoryInfo()
 {
 	case ${1} in
-		Total|total|TOTAL)
+		TenPercentOfYourMemory|tenpercentofyourmemory|TENPERCENTOFYOURMEMORY)
 			awk '/MemTotal/ {print int($2*0.1)}' /proc/meminfo;;
 		Available|available|AVAILABLE)
 			awk '/MemAvailable/ {print $2}' /proc/meminfo;;
@@ -42,7 +42,7 @@ function WaitIfSystemResourceIsInsufficient()
 {
 	while true
 	do
-		if [ $(MemoryInfo Available) -gt $(MemoryInfo Total) -a $(CPUUsage) -lt 90 ]
+		if [ $(MemoryInfo Available) -gt $(MemoryInfo TenPercentOfYourMemory) -a $(CPUUsage) -lt 90 ]
 		then
 			break
 		else
@@ -85,7 +85,7 @@ function RunCommandViaWinRM()
 function RunCommandViaSSH()
 {
 	test -z ${3} && local SSH_PORT=22
-	ssh -p ${SSH_PORT} -i "${SSH_KEY}" -o StrictHostKeyChecking=yes "${4}" root@${1} -- "${2}"
+	ssh -p ${SSH_PORT} -i "${SSH_KEY}" -o StrictHostKeyChecking=no ${4} root@${1} -- "${2}"
 }
 
 function CopyFilesViaWinRM()
@@ -96,7 +96,7 @@ function CopyFilesViaWinRM()
 function CopyFilesViaSSH()
 {
 	test -z ${4} && local SSH_PORT=22
-	scp -P ${SSH_PORT} -i "${SSH_KEY}" -o StrictHostKeyChecking=yes "${5}" root@${1} "${2}" "${3}"
+	scp -P ${SSH_PORT} -i "${SSH_KEY}" -o StrictHostKeyChecking=no ${5} root@${1} "${2}" "${3}"
 }
 function AddToList()
 {
@@ -119,10 +119,11 @@ function CheckLivesViaWinRM()
 	ansible "${1}" -T 5 -m win_shell -a "whoami" -i "${2}" 2>&1 > /dev/null
 }
 
-function CheckLivesWithSSH()
+function CheckLivesViaSSH()
 {
-	test -z ${2} && local SSH_PORT=22
-	ssh -p ${SSH_PORT} -i "${SSH_KEY}" - -o StrictHostKeyChecking=yes "${3}" root@${1} -- whoami 2>&1 > /dev/null
+	test -z ${2} && local SSH_PORT=22 || local SSH_PORT="${2}"
+	ssh -p ${SSH_PORT} -i "${SSH_KEY}" -o StrictHostKeyChecking=no ${3} root@${1} -- whoami 2>&1 > /dev/null
+}
 
 function AddHostsFile()
 {
@@ -146,7 +147,7 @@ function KeepProcessID()
 
 function DeleteProcessID()
 {
-	sed -i "d/${1}$/g" "${PROCESS_ID_LIST}"
+	sed -i "/${1}/d" "${PROCESS_ID_LIST}"
 }
 
 function FetchFromMachineList()
@@ -172,7 +173,7 @@ function Preliminary()
 	# Liveness and connectivity checks
 	CheckLivesViaPing ${IP} || return 1
 	case "${MACHINE_TYPE}" in
-		domain|stanalone)
+		domain|stanalone|windows)
 			CheckLivesViaWinRM "${IP}" "${ACCESS}";;
 		linux|vmware)
 			CheckLivesViaSSH "${IP}" "${PORT}" "${SSH_OPTIONS}";;
@@ -201,17 +202,17 @@ function Preliminary()
 function StartAudit()
 {
 	case "${MACHINE_TYPE}" in
-		domain|standalone)
-			StartWindowsAudit "${HNAME}" "${MACHINE_TYPE}" &
-			KeepProcessID "${HNAME}" "${!}"
+		domain|standalone|windows)
+			StartWindowsAudit "${IP}" &
+			KeepProcessID "${UNIQUE}" "${!}"
 			;;
 		linux)
 			StartLinuxAudit "${IP}" &
-			KeepProcessID "${HNAME}" "${!}"
+			KeepProcessID "${UNIQUE}" "${!}"
 			;;
 		vmware)
 			StartVMWareAudit "${IP}" &
-			KeepProcessID "${HNAME}" "${!}"
+			KeepProcessID "${UNIQUE}" "${!}"
 			;;
 	esac
 }
@@ -222,7 +223,7 @@ function StartWindowsAudit()
 
 
 	# To clear the PID register when the function is finished.
-	DeleteProcessID "${HNAME}"
+	DeleteProcessID "${UNIQUE}"
 }
 
 function StartLinuxAudit()
@@ -231,7 +232,7 @@ function StartLinuxAudit()
 
 
 	# To clear the PID register when the function is finished.
-	DeleteProcessID "${HNAME}"
+	DeleteProcessID "${UNIQUE}"
 }
 
 function StartVMWareAudit()
@@ -240,11 +241,12 @@ function StartVMWareAudit()
 
 
 	# To clear the PID register when the function is finished.
-	DeleteProcessID "${HNAME}"
+	DeleteProcessID "${UNIQUE}"
 }
 
 function WaitForProcessesToFinish()
 {
+	set -x
 	while true
 	do
 		test ! -s "${PROCESS_ID_LIST}" && break
@@ -254,19 +256,19 @@ function WaitForProcessesToFinish()
 
 function MainProcess()
 {
-	rm -rf "${DATA_DIR}" "${ACCESS_FILES_DIR}/access-*"
-	mkdir -p "${DATA_DIR}"
-	T=1
+        rm -rf "${DATA_DIR}" "${ACCESS_FILES_DIR}/access-*"
+        mkdir -p "${DATA_DIR}"
+        T=1
 
-	while [ ${T} -le ${MACHINE_NUMBER} ]
-	do
-		WaitIfSystemResourceIsInsufficient
-		Preliminary "$(FetchFromMachineList ${T})" || [[ T=$((T+1)) && continue ]]
-		StartAudit
-		T=$((T+1))
-	done
-	
-	WaitForProcessesToFinish
+        while [ ${T} -le ${MACHINE_NUMBER} ]
+        do
+                WaitIfSystemResourceIsInsufficient
+                Preliminary "$(FetchFromMachineList ${T})" || [[ T=$((T+1)) && continue ]]
+                StartAudit
+                T=$((T+1))
+        done
+
+        WaitForProcessesToFinish
 }
 
 MainProcess
