@@ -122,7 +122,7 @@ function CheckLivesViaWinRM()
 function CheckLivesViaSSH()
 {
 	test -z ${2} && local SSH_PORT=22 || local SSH_PORT="${2}"
-	ssh -p ${SSH_PORT} -i "${SSH_KEY}" -o StrictHostKeyChecking=no ${3} root@${1} -- whoami 2>&1 > /dev/null
+	ssh -q -p ${SSH_PORT} -i "${SSH_KEY}" -o StrictHostKeyChecking=no ${3} root@${1} -- whoami 2>&1 > /dev/null
 }
 
 function AddHostsFile()
@@ -185,45 +185,38 @@ function StartAudit()
 {
 	case "${MACHINE_TYPE}" in
 		domain|standalone|windows)
-			StartWindowsAudit "${IP}" &
-			KeepProcessID "${UNIQUE}" "${!}"
+			StartWindowsAudit "${IP}"
+#			KeepProcessID "${UNIQUE}" "${!}"
 			;;
 		linux)
-			StartLinuxAudit "${IP}" &
-			KeepProcessID "${UNIQUE}" "${!}"
+			StartLinuxAudit "${IP}"
+#			KeepProcessID "${UNIQUE}" "${!}"
 			;;
 		vmware)
-			StartVMWareAudit "${IP}" &
-			KeepProcessID "${UNIQUE}" "${!}"
+			StartVMWareAudit "${IP}"
+#			KeepProcessID "${UNIQUE}" "${!}"
 			;;
 	esac
+	
+	DeleteProcessID "${UNIQUE}"
 }
 
 function StartWindowsAudit()
 {
 	# We trigger the commands to run on the machine from this function.
-
-
-	# To clear the PID register when the function is finished.
-	DeleteProcessID "${UNIQUE}"
+	sleep 0.5
 }
 
 function StartLinuxAudit()
 {
 	# We trigger the commands to run on the machine from this function.
-
-
-	# To clear the PID register when the function is finished.
-	DeleteProcessID "${UNIQUE}"
+	sleep 0.5
 }
 
 function StartVMWareAudit()
 {
 	# We trigger the commands to run on the machine from this function.
-
-
-	# To clear the PID register when the function is finished.
-	DeleteProcessID "${UNIQUE}"
+	sleep 0.5
 }
 
 function WaitForProcessesToFinish()
@@ -248,7 +241,8 @@ function MainProcess()
 		local MACHINE_INFO=$(FetchFromMachineList "${T}")
 		T=$((T+1))
 		Preliminary "${MACHINE_INFO}" || continue
-		StartAudit
+		StartAudit &
+		KeepProcessID "${UNIQUE}" "${!}"
         done
 
 	WaitForProcessesToFinish
