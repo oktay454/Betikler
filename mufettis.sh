@@ -179,23 +179,6 @@ function Preliminary()
 		*)
 			return 1
 	esac
-
-#	CheckInsideHostsFile "${IP}" "${HNAME}" || AddHostsFile "${IP}" "${HNAME}"
-#	
-#	case "${MACHINE_TYPE}" in
-#		domain)
-#			ACCESS="${ACCESS_DOMAIN}"
-#			test -f "${ACCESS}" || CreateNTLMAccessFile "${ACCESS}" "${DC_USER}" "${DC_PASS}"
-#			AddToList "${HNAME}" "${ACCESS}"
-#			;;
-#		standalone)
-#			ACCESS="${ACCESS_STANDALONE}"
-#			test -f "${ACCESS}" || CreateNTLMAccessFile "${ACCESS}" "${STANDALONE_USER}" "${STANDALONE_PASS}"
-#			AddToList "${HNAME}" "${ACCESS}"
-#			;;
-#		*)
-#			;;
-#	esac
 }
 
 function StartAudit()
@@ -266,7 +249,6 @@ function MainProcess()
 		T=$((T+1))
 		Preliminary "${MACHINE_INFO}" || continue
 		StartAudit
-#		T=$((T+1))
         done
 
 	WaitForProcessesToFinish
