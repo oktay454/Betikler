@@ -185,16 +185,13 @@ function StartAudit()
 {
 	case "${MACHINE_TYPE}" in
 		domain|standalone|windows)
-			StartWindowsAudit "${IP}"
-#			KeepProcessID "${UNIQUE}" "${!}"
+			StartWindowsAudit
 			;;
 		linux)
-			StartLinuxAudit "${IP}"
-#			KeepProcessID "${UNIQUE}" "${!}"
+			StartLinuxAudit
 			;;
 		vmware)
-			StartVMWareAudit "${IP}"
-#			KeepProcessID "${UNIQUE}" "${!}"
+			StartVMWareAudit
 			;;
 	esac
 	
@@ -204,19 +201,43 @@ function StartAudit()
 function StartWindowsAudit()
 {
 	# We trigger the commands to run on the machine from this function.
-	sleep 0.5
+	echo ${UNIQUE}
+	echo ${IP}
+	echo ${HNAME}
+	echo ${MACHINE_TYPE}
+	echo ${PORT}
+	echo ${SSH_OPTIONS}
+	echo ${USER}
+	echo ${PASSWORD}
+	sleep 5
 }
 
 function StartLinuxAudit()
 {
 	# We trigger the commands to run on the machine from this function.
-	sleep 0.5
+	echo ${UNIQUE}
+	echo ${IP}
+	echo ${HNAME}
+	echo ${MACHINE_TYPE}
+	echo ${PORT}
+	echo ${SSH_OPTIONS}
+	echo ${USER}
+	echo ${PASSWORD}
+	sleep 5
 }
 
 function StartVMWareAudit()
 {
 	# We trigger the commands to run on the machine from this function.
-	sleep 0.5
+	echo ${UNIQUE}
+	echo ${IP}
+	echo ${HNAME}
+	echo ${MACHINE_TYPE}
+	echo ${PORT}
+	echo ${SSH_OPTIONS}
+	echo ${USER}
+	echo ${PASSWORD}
+	sleep 5
 }
 
 function WaitForProcessesToFinish()
