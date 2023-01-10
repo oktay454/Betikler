@@ -84,7 +84,7 @@ function RunCommandViaWinRM()
 
 function RunCommandViaSSH()
 {
-	test -z ${3} && local SSH_PORT=22
+	test -z ${3} && local SSH_PORT=22 || local SSH_PORT="${3}"
 	ssh -p ${SSH_PORT} -i "${SSH_KEY}" -o StrictHostKeyChecking=no ${4} root@${1} -- "${2}"
 }
 
@@ -95,7 +95,7 @@ function CopyFilesViaWinRM()
 
 function CopyFilesViaSSH()
 {
-	test -z ${4} && local SSH_PORT=22
+	test -z ${4} && local SSH_PORT=22 || local SSH_PORT="${4}"
 	scp -P ${SSH_PORT} -i "${SSH_KEY}" -o StrictHostKeyChecking=no ${5} root@${1} "${2}" "${3}"
 }
 function AddToList()
@@ -255,19 +255,21 @@ function WaitForProcessesToFinish()
 
 function MainProcess()
 {
-        rm -rf "${DATA_DIR}" "${ACCESS_FILES_DIR}/access-*"
-        mkdir -p "${DATA_DIR}"
-        T=1
+	rm -rf "${DATA_DIR}" "${ACCESS_FILES_DIR}/access-*"
+	mkdir -p "${DATA_DIR}"
+	T=1
 
-        while [ ${T} -le ${MACHINE_NUMBER} ]
-        do
-                WaitIfSystemResourceIsInsufficient
-                Preliminary "$(FetchFromMachineList ${T})" || [[ T=$((T+1)) && continue ]]
-                StartAudit
-                T=$((T+1))
+	while [ ${T} -le ${MACHINE_NUMBER} ]
+	do
+		WaitIfSystemResourceIsInsufficient
+		local MACHINE_INFO=$(FetchFromMachineList "${T}")
+		T=$((T+1))
+		Preliminary "${MACHINE_INFO}" || continue
+		StartAudit
+#		T=$((T+1))
         done
 
-        WaitForProcessesToFinish
+	WaitForProcessesToFinish
 }
 
 MainProcess
