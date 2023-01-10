@@ -16,7 +16,7 @@ PSSCRIPS="${VAR_DIR}/psscripts"
 ACCESS_FILES_DIR="${DATA_DIR}"
 COMMON_ACCESS_DOMAIN="${ACCESS_FILES_DIR}/access-domain"
 COMMON_ACCESS_STANDALONE="${ACCESS_FILES_DIR}/access-standalone"
-MACHINE_LIST="${DATA_DIR}/machine-list"
+MACHINE_LIST="${VAR_DIR}/machine-list"
 MACHINE_NUMBER="$(cat "${MACHINE_LIST}" | wc -l)"
 
 ACTIVE_LIST="/tmp/${APP_NAME}.active"
