@@ -167,13 +167,12 @@ function Preliminary()
 	USER="$(awk -F "," '{print $6}' <<< ${1})"
 	PASSWORD="$(awk -F "," '{print $7}' <<< ${1} | base64 -d)"
 
-	ACCESS="${ACCESS_FILES_DIR}/access-${UNIQUE}"
-	CreateNTLMAccessFile "${ACCESS}" "${USER}" "${PASSWORD}" "${IP}"
-
 	# Liveness and connectivity checks
 	CheckLivesViaPing ${IP} || return 1
 	case "${MACHINE_TYPE}" in
 		domain|stanalone|windows)
+			ACCESS="${ACCESS_FILES_DIR}/access-${UNIQUE}"
+			CreateNTLMAccessFile "${ACCESS}" "${USER}" "${PASSWORD}" "${IP}"
 			CheckLivesViaWinRM "${IP}" "${ACCESS}";;
 		linux|vmware)
 			CheckLivesViaSSH "${IP}" "${PORT}" "${SSH_OPTIONS}";;
