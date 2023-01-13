@@ -55,7 +55,7 @@ function ScanMachine()
 	test -z ${MACHINE} && continue
 	rm -rf "${WORK_DIR}/${MACHINE}"
 	mkdir -p "${WORK_DIR}/${MACHINE}"
-	ansible "${MACHINE}" -T 2 -m win_shell -a 'whoami;hostname;(Get-WmiObject win32_operatingsystem).caption;systeminfo | findstr "Domain";echo $PSVersionTable' -i "${ACCESS_FILE}" > "${WORK_DIR}/${MACHINE}/output"
+	ansible "${MACHINE}" -T 2 -m win_shell -a 'whoami;hostname;(Get-WmiObject win32_operatingsystem).caption;(Get-WmiObject -Class Win32_ComputerSystem).Domain;echo $PSVersionTable' -i "${ACCESS_FILE}" > "${WORK_DIR}/${MACHINE}/output"
 	if [ ${?} == 0 ]
 	then
 		mv "${WORK_DIR}/${MACHINE}/output" "${WORK_DIR}/${MACHINE}/success"

@@ -14,10 +14,8 @@ SSH_KEY="${DATA_DIR}/ssh-key/${APP_NAME}-priv-key"
 PSSCRIPS="${VAR_DIR}/psscripts"
 
 ACCESS_FILES_DIR="${DATA_DIR}"
-COMMON_ACCESS_DOMAIN="${ACCESS_FILES_DIR}/access-domain"
-COMMON_ACCESS_STANDALONE="${ACCESS_FILES_DIR}/access-standalone"
 MACHINE_LIST="${VAR_DIR}/machine-list"
-MACHINE_NUMBER="$(cat "${MACHINE_LIST}" | wc -l)"
+MACHINE_NUMBER="$(wc -l < "${MACHINE_LIST}")"
 
 ACTIVE_LIST="/tmp/${APP_NAME}.active"
 PROCESS_ID_LIST="/tmp/${APP_NAME}.ids"
@@ -105,7 +103,7 @@ function AddToList()
 
 function CreateTempDir()
 {
-	TEMP_DIR=$(mktemp -d /tmp/${PREFIX_TEMP_DIR}.XXXXXXX)
+	TEMP_DIR=$(mktemp -d "/tmp/${PREFIX_TEMP_DIR}.XXXXXXX")
 }
 
 function CheckLivesViaPing()
@@ -116,13 +114,13 @@ function CheckLivesViaPing()
 
 function CheckLivesViaWinRM()
 {
-	ansible "${1}" -T 5 -m win_shell -a "whoami" -i "${2}" 2>&1 > /dev/null
+	ansible "${1}" -T 5 -m win_shell -a "whoami" -i "${2}" > /dev/null 2>&1
 }
 
 function CheckLivesViaSSH()
 {
 	test -z ${2} && local SSH_PORT=22 || local SSH_PORT="${2}"
-	ssh -q -p ${SSH_PORT} -i "${SSH_KEY}" -o StrictHostKeyChecking=no ${3} root@${1} -- whoami 2>&1 > /dev/null
+	ssh -q -p ${SSH_PORT} -i "${SSH_KEY}" -o StrictHostKeyChecking=no ${3} root@${1} -- whoami > /dev/null 2>&1
 }
 
 function AddHostsFile()
