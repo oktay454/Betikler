@@ -9,7 +9,7 @@ test -z ${STANDALONE_PASS} && STANDALONE_PASS="Passw0rd!"
 test -z ${APP_NAME} && APP_NAME='mufettis'
 
 VAR_DIR="/usr/local/${APP_NAME}"
-DATA_DIR="/var/lib/${APP_NAME}"
+DATA_DIR="/var/cache/${APP_NAME}"
 SSH_KEY="${DATA_DIR}/ssh-key/${APP_NAME}-priv-key"
 PSSCRIPS="${VAR_DIR}/psscripts"
 
@@ -20,6 +20,7 @@ MACHINE_NUMBER="$(wc -l < "${MACHINE_LIST}")"
 ACTIVE_LIST="/tmp/${APP_NAME}.active"
 PROCESS_ID_LIST="/tmp/${APP_NAME}.ids"
 PREFIX_TEMP_DIR="${APP_NAME}"
+TIMEOUT_VALUE=5
 
 function CPUUsage()
 {
@@ -28,10 +29,10 @@ function CPUUsage()
 
 function MemoryInfo()
 {
-	case ${1} in
-		TenPercentOfYourMemory|tenpercentofyourmemory|TENPERCENTOFYOURMEMORY)
+	case ${1,,} in
+		tenpercentofyourmemory)
 			awk '/MemTotal/ {print int($2*0.1)}' /proc/meminfo;;
-		Available|available|AVAILABLE)
+		available)
 			awk '/MemAvailable/ {print $2}' /proc/meminfo;;
 	esac
 }
@@ -77,24 +78,53 @@ EOF
 
 function RunCommandViaWinRM()
 {
-	ansible "${1}" -T 5 -m win_shell -a "${3}" -i ${2}
+	# 1 IP
+	# 2 ACCESS FILE
+	# 3 COMMAND
+	ansible "${1}" -T ${TIMEOUT_VALUE} -m win_shell -a "${3}" -i ${2}
 }
 
 function RunCommandViaSSH()
 {
+	# 1 IP
+	# 2 COMMAND
+	# 3 PORT
+	# 4 SSH OPTIONS
+	# 5 USER
+	# 6 PASSWORD
+	test -z ${1} && return 2
+	test -z ${2} && return 2
 	test -z ${3} && local SSH_PORT=22 || local SSH_PORT="${3}"
-	ssh -p ${SSH_PORT} -i "${SSH_KEY}" -o StrictHostKeyChecking=no ${4} root@${1} -- "${2}"
+	test -z ${5} && local USER=root || local USER="${5}"
+	test -z ${6} || local SSHPASS="sshpass -p ${6}"
+	${SSHPASS} ssh -p ${SSH_PORT} -i "${SSH_KEY}" -o StrictHostKeyChecking=no -o ConnectTimeout=${TIMEOUT_VALUE} ${4} ${USER}@${1} -- "${2}"
 }
 
 function CopyFilesViaWinRM()
 {
-	ansible "${1}" -T 5 -m win_copy -a "src=${3} dest=${4}" -i ${2}
+	# 1 IP
+	# 2 ACCESS FILE
+	# 3 SOURCE
+	# 4 DESTINATION
+	ansible "${1}" -T ${TIMEOUT_VALUE} -m win_copy -a "src=${3} dest=${4}" -i ${2}
 }
 
 function CopyFilesViaSSH()
 {
+	# 1 IP
+	# 2 SOURCE
+	# 3 DESTINATION
+	# 4 PORT
+	# 5 SSH OPTIONS
+	# 6 USER
+	# 7 PASSWORD
+	test -z ${1} && return 2
+	test -z ${2} && return 2
+	test -z ${3} && return 2
 	test -z ${4} && local SSH_PORT=22 || local SSH_PORT="${4}"
-	scp -P ${SSH_PORT} -i "${SSH_KEY}" -o StrictHostKeyChecking=no ${5} root@${1} "${2}" "${3}"
+	test -z ${6} && local USER=root || local USER="${6}"
+	test -z ${7} || local SSHPASS="sshpass -p ${7}"
+	${SSHPASS} scp -P ${SSH_PORT} -i "${SSH_KEY}" -o StrictHostKeyChecking=no -o ConnectTimeout=${TIMEOUT_VALUE} ${5} ${USER}@${1} "${2}" "${3}"
 }
 function AddToList()
 {
@@ -108,28 +138,43 @@ function CreateTempDir()
 
 function CheckLivesViaPing()
 {
-	ping "${1}" -c 1 2>&1 > /dev/null
+	# 1 IP
+	ping "${1}" -w ${TIMEOUT_VALUE} -c 1 2>&1 > /dev/null
 
 }
 
 function CheckLivesViaWinRM()
 {
-	ansible "${1}" -T 5 -m win_shell -a "whoami" -i "${2}" > /dev/null 2>&1
+	# 1 IP
+	# 2 COMMAND
+	ansible "${1}" -T ${TIMEOUT_VALUE} -m win_shell -a "whoami;hostname;(Get-WmiObject win32_operatingsystem).caption;(Get-WmiObject -Class Win32_ComputerSystem).Domain;(Get-ItemProperty HKLM:\SOFTWARE\Microsoft\PowerShell\3\PowerShellEngine).PowerShellVersion" -i "${2}"
 }
 
 function CheckLivesViaSSH()
 {
+	# 1 IP
+	# 2 PORT
+	# 3 SSH OPTIONS
+	# 4 USER
+	# 5 PASSWORD
+	test -z ${1} && return 2
 	test -z ${2} && local SSH_PORT=22 || local SSH_PORT="${2}"
-	ssh -q -p ${SSH_PORT} -i "${SSH_KEY}" -o StrictHostKeyChecking=no ${3} root@${1} -- whoami > /dev/null 2>&1
+	test -z ${4} && local USER=root || local USER="${4}"
+	test -z ${5} || local SSHPASS="sshpass -p ${5}"
+	${SSHPASS} ssh -p ${SSH_PORT} -i "${SSH_KEY}" -o StrictHostKeyChecking=no -o ConnectTimeout=${TIMEOUT_VALUE} ${3} ${USER}@${1} -- 'whoami;hostname;cat /etc/issue.net;uname -a'
 }
 
 function AddHostsFile()
 {
+	# 1 IP
+	# 2 DNS
 	printf "${1}\t${2}\n" >> /etc/hosts
 }
 
 function CheckInsideHostsFile()
 {
+	# 1 IP
+	# 2 DNS
 	grep -qE "^${1}|${2}$" /etc/hosts
 }
 
@@ -140,16 +185,20 @@ function FinalCleaning()
 
 function KeepProcessID()
 {
+	# 1 UNIQUE
+	# 2 PROCESS ID
 	printf "${1},${2}\n" >> "${PROCESS_ID_LIST}"
 }
 
 function DeleteProcessID()
 {
+	# 1 UNIQUE
 	sed -i "/${1}/d" "${PROCESS_ID_LIST}"
 }
 
 function FetchFromMachineList()
 {
+	# 1 MACHINE LIST LINE NUMBER
 	sed -n ${1}p "${MACHINE_LIST}"
 }
 
@@ -167,22 +216,38 @@ function Preliminary()
 
 	# Liveness and connectivity checks
 	CheckLivesViaPing ${IP} || return 1
-	case "${MACHINE_TYPE}" in
-		domain|stanalone|windows)
-			ACCESS="${ACCESS_FILES_DIR}/access-${UNIQUE}"
+	mkdir -p "${DATA_DIR}/${UNIQUE}"
+	case "${MACHINE_TYPE,,}" in
+		windows)
+			ACCESS="${DATA_DIR}/${UNIQUE}/access-file"
 			CreateNTLMAccessFile "${ACCESS}" "${USER}" "${PASSWORD}" "${IP}"
-			CheckLivesViaWinRM "${IP}" "${ACCESS}";;
+			echo "${IP}" > "${DATA_DIR}/${UNIQUE}/output"
+			CheckLivesViaWinRM "${IP}" "${ACCESS}" > "${DATA_DIR}/${UNIQUE}/output" 2>&1
+			;;
 		linux|vmware)
-			CheckLivesViaSSH "${IP}" "${PORT}" "${SSH_OPTIONS}";;
+			echo "${IP}" > "${DATA_DIR}/${UNIQUE}/output"
+			CheckLivesViaSSH "${IP}" "${PORT}" "${SSH_OPTIONS}" "${USER}" "${PASSWORD}" > "${DATA_DIR}/${UNIQUE}/output" 2>&1
+			;;
 		*)
 			return 1
 	esac
+
+	local EXIT_CODE=${?}
+
+	if [ ${EXIT_CODE} == 0 ]
+	then
+		test -f "${DATA_DIR}/${UNIQUE}/output" && mv "${DATA_DIR}/${UNIQUE}/output" "${DATA_DIR}/${UNIQUE}/machine-info"
+	else
+		test -f "${DATA_DIR}/${UNIQUE}/output" && mv "${DATA_DIR}/${UNIQUE}/output" "${DATA_DIR}/${UNIQUE}/machine-error"
+	fi
+
+	return ${EXIT_CODE}
 }
 
 function StartAudit()
 {
-	case "${MACHINE_TYPE}" in
-		domain|standalone|windows)
+	case "${MACHINE_TYPE,,}" in
+		windows)
 			StartWindowsAudit
 			;;
 		linux)
@@ -240,7 +305,6 @@ function StartVMWareAudit()
 
 function WaitForProcessesToFinish()
 {
-	set -x
 	while true
 	do
 		test ! -s "${PROCESS_ID_LIST}" && break
@@ -250,7 +314,7 @@ function WaitForProcessesToFinish()
 
 function MainProcess()
 {
-	rm -rf "${DATA_DIR}" "${ACCESS_FILES_DIR}/access-*"
+	rm -rf "${DATA_DIR}"
 	mkdir -p "${DATA_DIR}"
 	T=1
 
@@ -260,11 +324,19 @@ function MainProcess()
 		local MACHINE_INFO=$(FetchFromMachineList "${T}")
 		T=$((T+1))
 		Preliminary "${MACHINE_INFO}" || continue
+		test ! -z ${QUERY} && continue
 		StartAudit &
 		KeepProcessID "${UNIQUE}" "${!}"
         done
 
 	WaitForProcessesToFinish
 }
+
+if [ "${1,,}" == "query" ]
+then
+	QUERY=true
+else
+	unset QUERY
+fi
 
 MainProcess
