@@ -214,19 +214,21 @@ function Preliminary()
 	USER="$(awk -F "," '{print $6}' <<< ${1})"
 	PASSWORD="$(awk -F "," '{print $7}' <<< ${1} | base64 -d)"
 
+	MACHINE_WORK_DIR="${DATA_DIR}/${UNIQUE}"
+
 	# Liveness and connectivity checks
 	CheckLivesViaPing ${IP} || return 1
 	mkdir -p "${DATA_DIR}/${UNIQUE}"
 	case "${MACHINE_TYPE,,}" in
 		windows)
-			ACCESS="${DATA_DIR}/${UNIQUE}/access-file"
+			ACCESS="${MACHINE_WORK_DIR}/access-file"
 			CreateNTLMAccessFile "${ACCESS}" "${USER}" "${PASSWORD}" "${IP}"
-			echo "${IP}" > "${DATA_DIR}/${UNIQUE}/output"
-			CheckLivesViaWinRM "${IP}" "${ACCESS}" > "${DATA_DIR}/${UNIQUE}/output" 2>&1
+			echo "${IP}" > "${MACHINE_WORK_DIR}/output"
+			CheckLivesViaWinRM "${IP}" "${ACCESS}" > "${MACHINE_WORK_DIR}/output" 2>&1
 			;;
 		linux|vmware)
-			echo "${IP}" > "${DATA_DIR}/${UNIQUE}/output"
-			CheckLivesViaSSH "${IP}" "${PORT}" "${SSH_OPTIONS}" "${USER}" "${PASSWORD}" > "${DATA_DIR}/${UNIQUE}/output" 2>&1
+			echo "${IP}" > "${MACHINE_WORK_DIR}/output"
+			CheckLivesViaSSH "${IP}" "${PORT}" "${SSH_OPTIONS}" "${USER}" "${PASSWORD}" > "${MACHINE_WORK_DIR}/output" 2>&1
 			;;
 		*)
 			return 1
@@ -236,9 +238,9 @@ function Preliminary()
 
 	if [ ${EXIT_CODE} == 0 ]
 	then
-		test -f "${DATA_DIR}/${UNIQUE}/output" && mv "${DATA_DIR}/${UNIQUE}/output" "${DATA_DIR}/${UNIQUE}/machine-info"
+		test -f "${MACHINE_WORK_DIR}/output" && mv "${MACHINE_WORK_DIR}/output" "${MACHINE_WORK_DIR}/machine-info"
 	else
-		test -f "${DATA_DIR}/${UNIQUE}/output" && mv "${DATA_DIR}/${UNIQUE}/output" "${DATA_DIR}/${UNIQUE}/machine-error"
+		test -f "${MACHINE_WORK_DIR}/output" && mv "${MACHINE_WORK_DIR}/output" "${MACHINE_WORK_DIR}/machine-error"
 	fi
 
 	return ${EXIT_CODE}
@@ -314,6 +316,11 @@ function WaitForProcessesToFinish()
 
 function MainProcess()
 {
+	if [ "${1,,}" == "query" ]
+	then
+		QUERY=true
+	fi
+
 	rm -rf "${DATA_DIR}"
 	mkdir -p "${DATA_DIR}"
 	T=1
@@ -332,11 +339,4 @@ function MainProcess()
 	WaitForProcessesToFinish
 }
 
-if [ "${1,,}" == "query" ]
-then
-	QUERY=true
-else
-	unset QUERY
-fi
-
-MainProcess
+MainProcess $@
