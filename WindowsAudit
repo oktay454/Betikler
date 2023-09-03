@@ -1,0 +1,504 @@
+#!/bin/bash
+
+# We trigger the commands to run on the machine from this function.
+# ${UNIQUE}
+# ${IP}
+# ${HNAME}
+# ${MACHINE_TYPE}
+# ${PORT}
+# ${SSH_OPTIONS}
+# ${USER}
+# ${PASSWORD}
+# ${MACHINE_WORK_DIR}
+# ${OUTPUT_DIR}
+# ${HTML_DIR}
+
+# New Method Test
+	
+CopyFilesViaWinRM "${IP}" "${ACCESS}" "${PSSCRIPTS}" "C:\\Windows\\Temp\\${APP_NAME}\\scripts\\"
+#RunCommandViaWinRM "${IP}" "${ACCESS}" "Get-ChildItem C:\\Windows\Temp\\${APP_NAME}\\scripts\\psscripts\\ | % {  & \$_.FullName }"
+
+# Ansible win_copy module has problems transferring files from Windows to Linux
+#CopyFilesViaWinRM "${IP}" "${ACCESS}" "C:\\Windows\\Temp\\${APP_NAME}\\outputs\\*" "${MACHINE_WORK_DIR}/windows-outputs/"
+
+# Old method
+
+RunCommandViaWinRM "${IP}" "${ACCESS}" "Get-WindowsFeature" | grep "\[X\]" > "${OUTPUTS_DIR}/features"
+
+grep -q "AD-Domain-Services" "${OUTPUTS_DIR}/features" && ADSERVER=TRUE
+grep "DNS Server" "${OUTPUTS_DIR}/features" | grep -qv "DNS Server Tools" && DNSSERVER=TRUE
+grep -q "FS-FileServer" "${OUTPUTS_DIR}/features" && FILESERVER=TRUE
+grep -q "DHCP" "${OUTPUTS_DIR}/features" && DHCPSERVER=TRUE
+grep -q "Web-Server" "${OUTPUTS_DIR}/features" && IISSERVER=TRUE
+grep -q "Web-Ftp-Server" "${OUTPUTS_DIR}/features" && FTPSERVER=TRUE
+grep -q "AD-Certificate" "${OUTPUTS_DIR}/features" && CASERVER=TRUE
+
+echo "<a href=javascript:; onclick=app.getReport('${LINKHEAD}/${HNAME}/systemreport.html')>System Report</a>" > "${HTML_DIR}/roles"
+if [ "$ADSERVER" = TRUE ]; then echo "<a href=javascript:; onclick=app.getReport('${LINKHEAD}/${HNAME}/adreport.html')>Active Directory Report</a>" >> "${HTML_DIR}/roles"; fi
+if [ "$DNSSERVER" = TRUE ]; then echo "<a href=javascript:; onclick=app.getReport('${LINKHEAD}/${HNAME}/dnsreport.html')>DNS Server Report</a>" >> "${HTML_DIR}/roles"; fi
+if [ "$FILESERVER" = TRUE ]; then echo "<a href=javascript:; onclick=app.getReport('${LINKHEAD}/${HNAME}/fsreport.html')>File Server Report</a>" >> "${HTML_DIR}/roles"; fi
+if [ "$DHCPSERVER" = TRUE ]; then echo "<a href=javascript:; onclick=app.getReport('${LINKHEAD}/${HNAME}/dhcpreport.html')>DHCP Server Report</a>" >> "${HTML_DIR}/roles"; fi
+if [ "$IISSERVER" = TRUE ]; then echo "<a href=javascript:; onclick=app.getReport('${LINKHEAD}/${HNAME}/iisreport.html')>IIS Server Report</a>" >> "${HTML_DIR}/roles"; fi
+if [ "$FTPSERVER" = TRUE ]; then echo "<a href=javascript:; onclick=app.getReport('${LINKHEAD}/${HNAME}/ftpreport.html')>FTP Server Report</a>" >> "${HTML_DIR}/roles"; fi
+if [ "$CASERVER" = TRUE ]; then echo "<a href=javascript:; onclick=app.getReport('${LINKHEAD}/${HNAME}/careport.html')>Certificate Authority Server Report</a>" >> "${HTML_DIR}/roles"; fi
+
+
+#========================================================================================================================
+# SYSTEM REPORT
+#========================================================================================================================
+
+# Output for System Report 
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_displayinfo.ps1" > "${OUTPUTS_DIR}/displayinfo"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_computerinfo.ps1" > "${OUTPUTS_DIR}/computerinfo"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_package.ps1" > "${OUTPUTS_DIR}/softwareinventory"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_hotfix.ps1" > "${OUTPUTS_DIR}/hotfixreport"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_updatecheck.ps1" > "${OUTPUTS_DIR}/updatecheck"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_service.ps1" > "${OUTPUTS_DIR}/servicelist"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_tcpconn.ps1" > "${OUTPUTS_DIR}/connectionlist"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_winrmauth.ps1" > "${OUTPUTS_DIR}/establishedconn"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_volume.ps1" > "${OUTPUTS_DIR}/volumeinfo"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_diskquota.ps1" > "${OUTPUTS_DIR}/diskquotainfo"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_bitlockervolume.ps1" > "${OUTPUTS_DIR}/bitlockerinfo"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_windefender_status.ps1" > "${OUTPUTS_DIR}/windefenderstatus"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_windefender_pref.ps1" > "${OUTPUTS_DIR}/windefenderpref"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_eventlog_list.ps1" > "${OUTPUTS_DIR}/eventlogconfig"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_eventlog_app.ps1" > "${OUTPUTS_DIR}/eventlogapp"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_eventlog_apperror.ps1" > "${OUTPUTS_DIR}/eventlogapp-error"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_eventlog_system.ps1" > "${OUTPUTS_DIR}/eventlogsystem"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_eventlog_security.ps1" > "${OUTPUTS_DIR}/eventlogsecurity"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_domainmember_info.ps1" > "${OUTPUTS_DIR}/domainmemberinfo"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_firewallprofile.ps1" > "${OUTPUTS_DIR}/firewallprofile"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_ntp_config.ps1" > "${OUTPUTS_DIR}/ntprawconfig"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_netadapter.ps1" > "${OUTPUTS_DIR}/nwadapterlist"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_netipinterface.ps1" > "${OUTPUTS_DIR}/nwinterfacelist"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_netipaddress.ps1" > "${OUTPUTS_DIR}/nwiplist"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_netroute.ps1" > "${OUTPUTS_DIR}/nwroutelist"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_netipconfiguration.ps1" > "${OUTPUTS_DIR}/nwconfiginfo"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_smb10.ps1" > "${OUTPUTS_DIR}/smb10"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_smb20.ps1" > "${OUTPUTS_DIR}/smb20"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_smbshare.ps1" > "${OUTPUTS_DIR}/smbshare"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_physicaldisk.ps1" > "${OUTPUTS_DIR}/diskinfo"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_volume.ps1" > "${OUTPUTS_DIR}/volumeinfo"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_partition.ps1" > "${OUTPUTS_DIR}/partitioninfo"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_diskdriveinfo.ps1" > "${OUTPUTS_DIR}/diskdriveinfo"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_antivirus.ps1" > "${OUTPUTS_DIR}/avinfo"
+nmap -Pn -F "${IP}" > "${OUTPUTS_DIR}/listeningservice"
+
+sed -i '1,2d' "${OUTPUTS_DIR}/{computerinfo,softwareinventory,hotfixreport,servicelist,eventlog*,firewallprofile,nw*,smb*,diskinfo,volumeinfo,partitioninfo,diskdriveinfo}"
+sed -i '/^\s*$/d' "${OUTPUTS_DIR}/*"
+sed -i '1d' "${OUTPUTS_DIR}/{listeningservice,connectionlist,avinfo}"
+sed -i '/msu/d' "${OUTPUTS_DIR}/softwareinventory"
+sed -i "/'Host is up'/d" "${OUTPUTS_DIR}/listeningservice"
+sed -i "/'Not shown:'/d" "${OUTPUTS_DIR}/listeningservice"
+sed -i "/'Nmap done:'/d" "${OUTPUTS_DIR}/listeningservice"
+sed -i "/'rc=0'/d" "${OUTPUTS_DIR}/domainmemberinfo"
+sed -i "/'rc=1'/d" "${OUTPUTS_DIR}/domainmemberinfo"
+
+#-----------------------------------------
+# SYSTEM CONTROLS
+#-----------------------------------------
+#-----------------------------------------
+# MACHINE INVENTORY REPORT
+# and other general reports
+#-----------------------------------------
+
+grep "VideoProcessor" "${OUTPUTS_DIR}/displayinfo" > "${OUTPUTS_DIR}/displayreport"
+grep "Description" "${OUTPUTS_DIR}/displayinfo" >> "${OUTPUTS_DIR}/displayreport"
+grep "VideoModeDescription" "${OUTPUTS_DIR}/displayinfo" >> "${OUTPUTS_DIR}/displayreport"
+
+#-----------------------------------------
+# MACHINE INVENTORY REPORT
+#-----------------------------------------
+cat > "${OUTPUTS_DIR}/machineinventory" << EOF
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+=== :::   ${HNAME} MACHINE INVENTORY   ::: ===
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+`grep "CsDNSHostName" "${OUTPUTS_DIR}/computerinfo"`
+--------------------------------------------------
+`grep "OsName" "${OUTPUTS_DIR}/computerinfo"`
+`grep "OsVersion" "${OUTPUTS_DIR}/computerinfo"`
+--------------------------------------------------
+`grep "CsProcessors" "${OUTPUTS_DIR}/computerinfo"`
+`grep "CsNumberOfProcessors" "${OUTPUTS_DIR}/computerinfo"`
+`grep "CsNumberOfLogicalProcessors" "${OUTPUTS_DIR}/computerinfo"`
+--------------------------------------------------
+`grep "OsTotalVisibleMemorySize" "${OUTPUTS_DIR}/computerinfo"`
+--------------------------------------------------
+`grep "VideoProcessor" "${OUTPUTS_DIR}/displayreport"`
+`grep "VideoModeDescription" "${OUTPUTS_DIR}/displayreport"`
+--------------------------------------------------
+`grep "CsChassisSKUNumber" "${OUTPUTS_DIR}/computerinfo"`
+`grep "CsPowerSupplyState" "${OUTPUTS_DIR}/computerinfo"`
+`grep "CsThermalState" "${OUTPUTS_DIR}/computerinfo"`
+--------------------------------------------------
+`grep "CsSystemFamily" "${OUTPUTS_DIR}/computerinfo"`
+
+===================================================================================================================
+EOF
+
+#-----------------------------------------
+# SOFTWARE INVENTORY REPORT
+#-----------------------------------------
+sed -i "1i :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::" "${OUTPUTS_DIR}/softwareinventory"
+sed -i "2i === :::   ${HNAME} SOFTWARE INVENTORY and INFORMATION   ::: ===                                                    " "${OUTPUTS_DIR}/softwareinventory"
+sed -i "3i :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::" "${OUTPUTS_DIR}/softwareinventory"
+echo "========================================================================================================================" >> "${OUTPUTS_DIR}/softwareinventory"
+
+#-----------------------------------------
+# OS INFORMATION REPORT
+#-----------------------------------------
+cat > "${OUTPUTS_DIR}/osreport" << EOF
+::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+=== :::   ${HNAME} OS INFORMATION REPORT   ::: ===
+::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+`grep "CsDNSHostName" "${OUTPUTS_DIR}/computerinfo"`
+`grep "CsDomainRole" "${OUTPUTS_DIR}/computerinfo"`
+`grep "OsName" "${OUTPUTS_DIR}/computerinfo"`
+`grep "OsVersion" "${OUTPUTS_DIR}/computerinfo"`
+`grep "OsBuildNumber" "${OUTPUTS_DIR}/computerinfo"`
+`grep "WindowsCurrentVersion" "${OUTPUTS_DIR}/computerinfo"`
+`grep "WindowsEditionId" "${OUTPUTS_DIR}/computerinfo"`
+`grep "WindowsInstallationType" "${OUTPUTS_DIR}/computerinfo"`
+--------------------------------------------------
+`grep "OsHotFixes" "${OUTPUTS_DIR}/computerinfo"`
+`grep "OsArchitecture" "${OUTPUTS_DIR}/computerinfo"`
+`grep "OsLanguage" "${OUTPUTS_DIR}/computerinfo"`
+`grep "OsProductType" "${OUTPUTS_DIR}/computerinfo"`
+`grep "OsSerialNumber" "${OUTPUTS_DIR}/computerinfo"`
+--------------------------------------------------
+`grep "OsInstallDate" "${OUTPUTS_DIR}/computerinfo"`
+`grep "OsLastBootUpTime" "${OUTPUTS_DIR}/computerinfo"`
+`grep "OsUptime" "${OUTPUTS_DIR}/computerinfo"`
+`grep "LogonServer" "${OUTPUTS_DIR}/computerinfo"`
+--------------------------------------------------
+`grep "OsSystemDrive" "${OUTPUTS_DIR}/computerinfo"`
+`grep "OsWindowsDirectory" "${OUTPUTS_DIR}/computerinfo"`
+--------------------------------------------------
+`grep "TimeZone" "${OUTPUTS_DIR}/computerinfo"`
+`grep "KeyboardLayout" "${OUTPUTS_DIR}/computerinfo"`
+`grep "OsMuiLanguages" "${OUTPUTS_DIR}/computerinfo"`
+--------------------------------------------------
+`grep "OsLocalDateTime" "${OUTPUTS_DIR}/computerinfo"`
+`grep "OsLastBootUpTime" "${OUTPUTS_DIR}/computerinfo"`
+========================================================================================================================
+EOF
+
+#-----------------------------------------
+# HOTFIX REPORT
+#-----------------------------------------
+sed -i "1i :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::" "${OUTPUTS_DIR}/hotfixreport"
+sed -i "2i === :::   ${HNAME} Installed Hotfix List   ::: ===                                                                 " "${OUTPUTS_DIR}/hotfixreport"
+sed -i "3i :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::" "${OUTPUTS_DIR}/hotfixreport"
+echo "========================================================================================================================" >> "${OUTPUTS_DIR}/hotfixreport"
+
+#-----------------------------------------
+# SERVICE REPORT
+#-----------------------------------------
+sed -i "1i :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::" "${OUTPUTS_DIR}/servicelist"
+sed -i "2i === :::   ${HNAME} Listening Service List (internal control)   ::: ===                                             " "${OUTPUTS_DIR}/servicelist"
+sed -i "3i :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::" "${OUTPUTS_DIR}/servicelist"
+echo "========================================================================================================================" >> "${OUTPUTS_DIR}/servicelist"
+
+# Running Service
+cat > "${OUTPUTS_DIR}/runningservice" << EOF
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+=== :::   ${HNAME} Running Service List   ::: ===
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+`grep 'Running' "${OUTPUTS_DIR}/servicelist"`
+========================================================================================================================
+EOF
+
+# Stopped Service
+cat > "${OUTPUTS_DIR}/stoppedservice" << EOF
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+=== :::   ${HNAME} Stopped Service List   ::: ===
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+`grep 'Stopped' "${OUTPUTS_DIR}/servicelist"`
+========================================================================================================================
+EOF
+
+# Listening Service
+sed -i "1i :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::" "${OUTPUTS_DIR}/listeningservice"
+sed -i "2i === :::   ${HNAME} Listening Service/Port List (external control)   ::: ===                                        " "${OUTPUTS_DIR}/listeningservice"
+sed -i "3i :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::" "${OUTPUTS_DIR}/listeningservice"
+echo "========================================================================================================================" >> "${OUTPUTS_DIR}/listeningservice"
+
+# Disk Quota Control
+cat > "${OUTPUTS_DIR}/quotainfo" << EOF
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+=== :::   ${HNAME} Disk Quota Information   ::: ===
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+=== ::: Volume List ::: ===
+
+`grep -vE 'rc=0|rc=1' "${OUTPUTS_DIR}/volumeinfo"`
+------------------------------------------------------------------------------------------------------------------------
+
+=== ::: Quota Usage Check for All Volumes::: ===
+
+`grep -vE 'rc=0|rc=1' "${OUTPUTS_DIR}/diskquotainfo"`
+------------------------------------------------------------------------------------------------------------------------
+========================================================================================================================
+EOF
+
+# BitLocker Volume Control
+sed -i "1i :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::" "${OUTPUTS_DIR}/bitlockerinfo"
+sed -i "2i === :::   ${HNAME} BitLocker Information   ::: ===                                                                 " "${OUTPUTS_DIR}/bitlockerinfo"
+sed -i "3i :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::" "${OUTPUTS_DIR}/bitlockerinfo"
+echo "========================================================================================================================" >> "${OUTPUTS_DIR}/bitlockerinfo"
+
+# Windows Defender Report
+cat > "${OUTPUTS_DIR}/windefenderreport" << EOF
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+=== :::   ${HNAME} WINDOWS DEFENDER CONFIGURATION and INFORMATION ::: ===
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+===================================================================================================================
+STATUS CONFIG and INFORMATION
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+`cat "${OUTPUTS_DIR}/windefenderstatus"`
+===================================================================================================================
+
+===================================================================================================================
+PREFERENCES INFORMATION
+":::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+`cat "${OUTPUTS_DIR}/windefenderpref"`
+===================================================================================================================
+EOF
+
+#-----------------------------------------
+# EventLog Control
+#-----------------------------------------
+# eventlog Configuration
+sed -i "1i $WINMACHINE EventLog Configuration" "${OUTPUTS_DIR}/eventlogconfig"
+sed -i "2i --------------------------------------------------" "${OUTPUTS_DIR}/eventlogconfig"
+
+# Application EventLog
+sed -i "1i $WINMACHINE Application EventLog" "${OUTPUTS_DIR}/eventlogapp"
+sed -i "2i --------------------------------------------------" "${OUTPUTS_DIR}/eventlogapp"
+
+# Application EventLog Error
+sed -i "1i $WINMACHINE Application EventLog Error Messages" "${OUTPUTS_DIR}/eventlogapp-error"
+sed -i "2i --------------------------------------------------" "${OUTPUTS_DIR}/eventlogapp-error"
+
+# System EventLog
+sed -i "1i $WINMACHINE System EventLog" "${OUTPUTS_DIR}/eventlogsystem"
+sed -i "2i --------------------------------------------------" "${OUTPUTS_DIR}/eventlogsystem"
+
+cat > "${OUTPUTS_DIR}/eventlogsystem-error" << EOF
+${HNAME} System EventLog Error Messages
+--------------------------------------------------
+`grep 'Error' "${OUTPUTS_DIR}/eventlogsystem"`
+EOF
+
+# Security EventLog
+sed -i "1i $WINMACHINE Security EventLog" "${OUTPUTS_DIR}/eventlogsecurity"
+sed -i "2i --------------------------------------------------" "${OUTPUTS_DIR}/eventlogsecurity"
+
+# Security EventLog Error
+
+cat > "${OUTPUTS_DIR}/eventlogsecurity-error" << EOF
+${HNAME} Security EventLog Unsucessfuly/Warning Messages
+--------------------------------------------------
+`sed '1,2d' "${OUTPUTS_DIR}/eventlogsecurity" | grep -v 'Success'`
+EOF
+
+#-----------------------------------------
+# Domain Member Controls
+#-----------------------------------------
+sed -i "1i :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::" "${OUTPUTS_DIR}/domainmemberinfo"
+sed -i "2i === :::   ${HNAME} Domain Member Information ::: ===                                                               " "${OUTPUTS_DIR}/domainmemberinfo"
+sed -i "3i :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::" "${OUTPUTS_DIR}/domainmemberinfo"
+echo "========================================================================================================================" >> "${OUTPUTS_DIR}/domainmemberinfo"
+
+
+#-----------------------------------------
+# Firewall Configuration Check (domain,public and private)
+#-----------------------------------------
+sed -i "1i ${HNAME} Windows Firewall Profile Information" "${OUTPUTS_DIR}/firewallprofile"
+sed -i "2i --------------------------------------------------" "${OUTPUTS_DIR}/firewallprofile"
+
+#-----------------------------------------
+# NTP Configuration Control
+#-----------------------------------------
+grep -E "NTP:|Stratum:|Last Successful Sync Time:" "${OUTPUTS_DIR}/ntprawconfig" > "${OUTPUTS_DIR}/ntpconfig"
+
+cat "${OUTPUTS_DIR}/nwreport" << EOF
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+=== :::   ${HNAME} NETWORK CONFIGURATION and INFORMATION ::: ===
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+===================================================================================================================
+ADAPTER LIST and INFORMATION
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+`cat "${OUTPUTS_DIR}/nwadapterlist"`
+===================================================================================================================
+
+===================================================================================================================
+INTERFACE LIST and INFORMATION
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+`cat "${OUTPUTS_DIR}/nwinterfacelist"`
+===================================================================================================================
+
+===================================================================================================================
+IP ADDRESS LIST and INFORMATION
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+`cat "${OUTPUTS_DIR}/nwiplist"`
+===================================================================================================================
+
+===================================================================================================================
+ROUTING LIST and INFORMATION
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+`cat "${OUTPUTS_DIR}/nwroutelist"`
+===================================================================================================================
+
+===================================================================================================================
+NETWORK IP CONFIG and INFORMATION
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+`cat "${OUTPUTS_DIR}/nwconfiginfo"`
+===================================================================================================================
+EOF
+
+#-----------------------------------------
+# SMB Protocol Version Control
+#-----------------------------------------
+sed -i "1i $WINMACHINE SMB V1 Usage Check Result" "${OUTPUTS_DIR}/smb10"
+sed -i "2i --------------------------------------------------" "${OUTPUTS_DIR}/smb10"
+
+sed -i "1i $WINMACHINE SMB V2 Usage Check Result" "${OUTPUTS_DIR}/smb20"
+sed -i "2i --------------------------------------------------" "${OUTPUTS_DIR}/smb20"
+
+#-----------------------------------------
+# SMB SHARE LIST REPORT
+#-----------------------------------------
+sed -i "1i :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::" "${OUTPUTS_DIR}/smbshare"
+sed -i "2i === :::   ${HNAME} SMB SHARE LIST and INFORMATION   ::: ===                                                        " "${OUTPUTS_DIR}/smbshare"
+sed -i "3i :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::" "${OUTPUTS_DIR}/smbshare"
+
+#-----------------------------------------
+# DISK/STORAGE REPORT
+#-----------------------------------------
+
+cat > "${OUTPUTS_DIR}/storagereport" << EOF
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+=== ::: ${HNAME} DISK/STORAGE INFORMATION REPORT ::: ===
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+===================================================================================================================
+DISK LIST and INFORMATION
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+`cat "${OUTPUTS_DIR}/diskinfo"`
+===================================================================================================================
+
+===================================================================================================================
+VOLUME LIST and INFORMATION
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+`cat "${OUTPUTS_DIR}/volumeinfo"`
+===================================================================================================================
+
+===================================================================================================================
+PARTITION LIST and INFORMATION
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+`cat "${OUTPUTS_DIR}/partitioninfo"`
+
+===================================================================================================================
+DRIVE LIST and INFORMATION
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+`cat "${OUTPUTS_DIR}/diskdriveinfo"`
+===================================================================================================================
+EOF
+
+#-----------------------------------------
+# BIOS REPORT
+#-----------------------------------------
+cat > "${OUTPUTS_DIR}/biosreport" << EOF
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+=== ::: ${HNAME} BIOS INFORMATION REPORT ::: ===
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+`grep -E 'BiosBuildNumber|BiosBIOSVersion|BiosDescription|BiosManufacturer|BiosReleaseDate|BiosFirmwareType' "${OUTPUTS_DIR}/computerinfo"`
+EOF
+
+#========================================================================================================================
+# ACTIVE DIRECTORY REPORT
+#========================================================================================================================
+
+if [ "$ADSERVER" = TRUE ]; then
+# Output for Active Directory Report
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_dclist.ps1" > "${OUTPUTS_DIR}/ad-dclist"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_fsmorolesinfo.ps1" > "${OUTPUTS_DIR}/ad-fsmorolesinfo"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_domainservicesinfo.ps1" > "${OUTPUTS_DIR}/ad-domainservicesinfo"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_adforestinfo.ps1" > "${OUTPUTS_DIR}/ad-forestinfo"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_adminsdholder.ps1" > "${OUTPUTS_DIR}/ad-adminsdholder"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_adreplicationfailure.ps1" > "${OUTPUTS_DIR}/ad-adreplicationfailure"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_dcdiagnostics.ps1" > "${OUTPUTS_DIR}/ad-dcdiagnostics"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_domainpasswordpolicy.ps1" > "${OUTPUTS_DIR}/ad-domainpasswordpolicy"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_alluserlist.ps1" > "${OUTPUTS_DIR}/ad-alluserlist"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_domainadmins.ps1" > "${OUTPUTS_DIR}/ad-domainadminslist"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_enterpriseadmins.ps1" > "${OUTPUTS_DIR}/ad-enterpriseadminslist"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_schemaadmins.ps1" > "${OUTPUTS_DIR}/ad-schemaadminslist"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_gpcreatorowners.ps1" > "${OUTPUTS_DIR}/ad-gpcreatorownerslist"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_createduser_last7day.ps1" > "${OUTPUTS_DIR}/ad-lastcreate7"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_createduser_last30day.ps1" > "${OUTPUTS_DIR}/ad-lastcreate30"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_passchange_admin.ps1" > "${OUTPUTS_DIR}/ad-passchangeadmin"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_passchange_own.ps1" > "${OUTPUTS_DIR}/ad-passchangeown"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_passneverexpires.ps1" > "${OUTPUTS_DIR}/ad-passneverexpires"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_passnotreq.ps1" > "${OUTPUTS_DIR}/ad-passnotreq"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_lastlogon_user.ps1" > "${OUTPUTS_DIR}/ad-userlogonlist"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_lastlogon_user_1week.ps1" > "${OUTPUTS_DIR}/ad-userlogon1wlist"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_lastlogon_user_45day.ps1" > "${OUTPUTS_DIR}/ad-userlogon45list"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_lastlogon_user_90day.ps1" > "${OUTPUTS_DIR}/ad-userlogon90list"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_lastlogon_computer.ps1" > "${OUTPUTS_DIR}/ad-complogonlist"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_lastlogon_computer_1week.ps1" > "${OUTPUTS_DIR}/ad-complogon1wlist"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_lastlogon_computer_45day.ps1" > "${OUTPUTS_DIR}/ad-complogon45list"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_lastlogon_computer_90day.ps1" > "${OUTPUTS_DIR}/ad-complogon90list"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_computer_list.ps1" > "${OUTPUTS_DIR}/ad-computerreportlist"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_computer_winserverlist.ps1" > "${OUTPUTS_DIR}/ad-compwinserverreport"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_computer_disabledlist.ps1" > "${OUTPUTS_DIR}/ad-compdisabledreportlist"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_gpo_all.ps1" > "${OUTPUTS_DIR}/ad-gpolist"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_protecteduserlist.ps1" > "${OUTPUTS_DIR}/ad-domainprotecteduserlist"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_grouplist.ps1" > "${OUTPUTS_DIR}/ad-domaingrouplist"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_protectedgrouplist.ps1" > "${OUTPUTS_DIR}/ad-domainprotectedgrouplist"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_domainous.ps1" > "${OUTPUTS_DIR}/ad-domainous"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_computerlogon.ps1" > "${OUTPUTS_DIR}/ad-computerlogon"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_eventlog_web.ps1" > "${OUTPUTS_DIR}/ad-eventlogadws"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_eventlog_ntds.ps1" > "${OUTPUTS_DIR}/ad-eventlogntds"
+
+fi
+
+# Output for IIS Report	
+if [ "$IISSERVER" = TRUE ]; then
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_iiswebsite.ps1" > "${OUTPUTS_DIR}/iis-info"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_iisitemproperty.ps1" > "${OUTPUTS_DIR}/iis-itemproperty"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_iisservermanager.ps1" > "${OUTPUTS_DIR}/iis-servermanager"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_iissslusage.ps1" > "${OUTPUTS_DIR}/iis-sslusage"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_iismodules.ps1" > "${OUTPUTS_DIR}/iis-modules"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_iisdebugcheck.ps1" > "${OUTPUTS_DIR}/iis-debugcheck"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_iishttperrors.ps1" > "${OUTPUTS_DIR}/iis-httperrors"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_iiscustomerrors.ps1" > "${OUTPUTS_DIR}/iis-customerrors"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_iistracecheck.ps1" > "${OUTPUTS_DIR}/iis-tracecheck"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_iiskeymethod.ps1" > "${OUTPUTS_DIR}/iis-keymethod"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_iiscontentlength.ps1" > "${OUTPUTS_DIR}/iis-contentlength"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_iisurllength.ps1" > "${OUTPUTS_DIR}/iis-urllength"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_iisquerylength.ps1" > "${OUTPUTS_DIR}/iis-querylength"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_iishighbitchar.ps1" > "${OUTPUTS_DIR}/iis-highbitchar"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_iisdoublescape.ps1" > "${OUTPUTS_DIR}/iis-doubleescape"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_iisunlistedfileext.ps1" > "${OUTPUTS_DIR}/iis-unlistedfileext"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_iisexecutepolicy.ps1" > "${OUTPUTS_DIR}/iis-executepolicy"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_iisisapicheck.ps1" > "${OUTPUTS_DIR}/iis-isapicheck"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_iisisapirestrict.ps1" > "${OUTPUTS_DIR}/iis-isapirestrict"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_iisconcurrentreq.ps1" > "${OUTPUTS_DIR}/iis-concurrentreq"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_iisconcurrentmaxreq.ps1" > "${OUTPUTS_DIR}/iis-concurrentmaxreq"
+RunCommandViaWinRM "${IP}" "${ACCESS}" "${WIN_PS_DIR}\get_iislogpath.ps1" > "${OUTPUTS_DIR}/iis-logpath"
+
+fi

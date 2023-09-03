@@ -1,0 +1,570 @@
+#!/bin/sh
+
+LINE='<hr class="dashed">'
+SYSDATE=$(date +%F)
+SYSDAY=$(date +%A)
+SYSHOUR=$(date +%H:%M)
+RDATE="$SYSDATE - $SYSDAY $SYSHOUR"
+
+trap "rm -rf /tmp/oppyreports/" EXIT
+
+test -z $HNAME && HNAME=vmware1
+RDIR=/tmp/oppyreports/vmwarereports/$HNAME
+rm -r $RDIR
+mkdir -p $RDIR
+
+LINKHEAD=reports/vmwarereports/$HNAME
+
+ESXIHOSTNAME=$(esxcli system hostname get |grep "Host Name:")
+ESXIFQDN=$(esxcli system hostname get |grep "Fully Qualified Domain Name:")
+ESXIINSTALLTIME=$(esxcli system stats installtime get)
+ESXIPYHMEM=$(esxcli hardware memory get |grep "Physical Memory:")
+ESXIRELMEM=$(esxcli hardware memory get |grep "Reliable Memory:")
+ESXINUMANODE=$(esxcli hardware memory get |grep "NUMA Node Count:")
+ESXICLOCK=$(esxcli hardware clock get)
+ESXIVER=$(esxcli system version get |grep "Version:")
+ESXIBUILD=$(esxcli system version get |grep "Build:")
+ESXIUPDATE=$(esxcli system version get |grep "Update:")
+ESXIPATCH=$(esxcli system version get |grep "Patch:")
+
+cat > $RDIR/$HNAME.systeminfo << EOF
+==================================================================================================================
+------------------------------------------------------------------------------------------------------------------
+:::.. ESXI HOST INFORMATION :::..
+------------------------------------------------------------------------------------------------------------------
+
+-----------------------------------------------------------------------------------------------------------------
+| Host Info
+-----------------------------------------------------------------------------------------------------------------
+Hostname:            |$ESXIHOSTNAME --- FQDN: $ESXIFQDN
+IP Address:          |192.168.1.100
+Pyhsical Memory:     |$ESXIPYHMEM
+Reliable Memory:     |$ESXIRELMEMORY
+NUMA Node:           |$ESXINUMANODE
+ESXI Clock:          |$ESXICLOCK
+-----------------------------------------------------------------------------------------------------------------
+
+-----------------------------------------------------------------------------------------------------------------
+| ESXI Info
+-----------------------------------------------------------------------------------------------------------------
+ESXI Install Time:   |$ESXIINSTALLTIME
+ESXI Version:        |$ESXIVER
+ESXI Build:          |$ESXIBUILD
+ESXI Update:         |$ESXIUPDATE
+ESXI Patch:          |$ESXIPATCH
+-----------------------------------------------------------------------------------------------------------------
+
+-----------------------------------------------------------------------------------------------------------------
+| Vulnerability Info
+-----------------------------------------------------------------------------------------------------------------
+CVE List:            |
+-----------------------------------------------------------------------------------------------------------------
+
+=================================================================================================================
+EOF
+
+echo "                                                                                                                 " > $RDIR/$HNAME.userinfo
+echo "-----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.userinfo
+echo "$HNAME VMWare Host User Account Information                                                                      " >> $RDIR/$HNAME.userinfo
+echo "-----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.userinfo
+esxcli system account list >> $RDIR/$HNAME.userinfo
+echo "                                                                                                                 " >> $RDIR/$HNAME.userinfo
+echo "-----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.userinfo
+
+echo "-----------------------------------------------------------------------------------------------------------------" > $RDIR/$HNAME.fwinfo
+echo "$HNAME VMWare Host Firewall Information                                                                          " >> $RDIR/$HNAME.fwinfo
+echo "-----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.fwinfo
+echo "                                                                                                                 " >> $RDIR/$HNAME.fwinfo
+echo "-----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.fwinfo
+echo "| Firewall Ruleset                                                                                               " >> $RDIR/$HNAME.fwinfo
+echo "-----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.fwinfo
+esxcli network firewall ruleset list | grep true >> $RDIR/$HNAME.fwinfo
+echo "-----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.fwinfo
+echo "                                                                                                                 " >> $RDIR/$HNAME.fwinfo
+echo "Firewall Config:" >> $RDIR/$HNAME.fwinfo
+echo "-----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.fwinfo
+esxcli network firewall get >> $RDIR/$HNAME.fwinfo
+echo "-----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.fwinfo
+echo "                                                                                                                 " >> $RDIR/$HNAME.fwinfo
+echo "Firewall Loaded Rules:" >> $RDIR/$HNAME.fwinfo
+echo "-----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.fwinfo
+esxcli network firewall load >> $RDIR/$HNAME.fwinfo
+echo "                                                                                                                 " >> $RDIR/$HNAME.fwinfo
+echo "-----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.fwinfo
+
+echo "-----------------------------------------------------------------------------------------------------------------" > $RDIR/$HNAME.nwinfo
+echo "$HNAME VMWare Host Network Configuration                                                                         " >> $RDIR/$HNAME.nwinfo
+echo "-----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.nwinfo
+echo "                                                                                                                 " >> $RDIR/$HNAME.nwinfo
+echo "-----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.nwinfo
+echo "| Physical NIC - Network Interface                                                                               " >> $RDIR/$HNAME.nwinfo
+echo "-----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.nwinfo
+esxcli network nic list >> $RDIR/$HNAME.nwinfo
+echo "-----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.nwinfo
+esxcli network nic coalesce get >> $RDIR/$HNAME.nwinfo
+echo "                                                                                                                 " >> $RDIR/$HNAME.nwinfo
+echo "-----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.nwinfo
+echo "| Network Interfaces |                                                                                           " >> $RDIR/$HNAME.nwinfo
+echo "-----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.nwinfo
+esxcli network ip interface list >> $RDIR/$HNAME.nwinfo
+echo "-----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.nwinfo
+echo "                                                                                                                 " >> $RDIR/$HNAME.nwinfo
+echo "-----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.nwinfo
+echo "| IP Adress Info |                                                                                               " >> $RDIR/$HNAME.nwinfo
+echo "-----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.nwinfo
+esxcli network ip get >> $RDIR/$HNAME.nwinfo
+echo "-----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.nwinfo
+echo "                                                                                                                 " >> $RDIR/$HNAME.nwinfo
+echo "-----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.nwinfo
+echo "| Route Information                                                                                              " >> $RDIR/$HNAME.nwinfo
+echo "-----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.nwinfo
+echo "| IPv4                                                                                                           " >> $RDIR/$HNAME.nwinfo
+echo "-----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.nwinfo
+esxcli network ip route ipv4 list >> $RDIR/$HNAME.nwinfo
+echo "-----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.nwinfo
+echo "| IPv6                                                                                                           " >> $RDIR/$HNAME.nwinfo
+echo "-----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.nwinfo
+esxcli network ip route ipv6 list >> $RDIR/$HNAME.nwinfo
+echo "                                                                                                                 " >> $RDIR/$HNAME.nwinfo
+echo "-----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.nwinfo
+echo "| Netstack Info |                                                                                                " >> $RDIR/$HNAME.nwinfo
+echo "-----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.nwinfo
+esxcli network ip netstack list >> $RDIR/$HNAME.nwinfo
+echo "                                                                                                                 " >> $RDIR/$HNAME.nwinfo
+echo "-----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.nwinfo
+echo "| Multicast Group List |                                                                                         " >> $RDIR/$HNAME.nwinfo
+echo "-----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.nwinfo
+esxcli network multicast group list >> $RDIR/$HNAME.nwinfo
+echo "                                                                                                                 " >> $RDIR/$HNAME.nwinfo
+echo "-----------------------------------------------------------------------------------------------------------------" > $RDIR/$HNAME.dnsinfo
+echo "$HNAME VMWare Host DNS Server Info                                                                               " >> $RDIR/$HNAME.dnsinfo
+echo "-----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.dnsinfo
+echo "                                                                                                                 " >> $RDIR/$HNAME.dnsinfo
+echo "-----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.dnsinfo
+echo "| DNS Servers                                                                                                    " >> $RDIR/$HNAME.dnsinfo
+echo "-----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.dnsinfo
+esxcli network ip dns server list >> $RDIR/$HNAME.dnsinfo
+echo "                                                                                                                 " >> $RDIR/$HNAME.dnsinfo
+echo "-----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.dnsinfo
+
+echo "-----------------------------------------------------------------------------------------------------------------" > $RDIR/$HNAME.conninfo
+echo "$HNAME VMWare Host Connection Information                                                                        " >> $RDIR/$HNAME.conninfo
+echo "-----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.conninfo
+echo "                                                                                                                 " >> $RDIR/$HNAME.conninfo
+echo "-----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.conninfo
+echo "| TCP UDP Connection List |                                                                                      " >> $RDIR/$HNAME.conninfo
+echo "-----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.conninfo
+esxcli network ip connection list >> $RDIR/$HNAME.conninfo
+echo "                                                                                                                 " >> $RDIR/$HNAME.conninfo
+echo "-----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.conninfo
+echo "                                                                                                                 " >> $RDIR/$HNAME.conninfo
+echo "-----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.conninfo
+echo "| Physical Neighbor List |                                                                                       " >> $RDIR/$HNAME.conninfo
+echo "-----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.conninfo
+esxcli network ip neighbor list >> $RDIR/$HNAME.conninfo
+echo "                                                                                                                 " >> $RDIR/$HNAME.conninfo
+echo "-----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.nicinfo
+echo "| NIC queue Count Info |                                                                                         " >> $RDIR/$HNAME.nicinfo
+echo "-----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.nicinfo
+esxcli network nic queue count get >> $RDIR/$HNAME.nicinfo
+echo "                                                                                                                 " >> $RDIR/$HNAME.nicinfo
+echo "-----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.nicinfo
+echo "| NIC Filterclass List |                                                                                         " >> $RDIR/$HNAME.nicinfo
+echo "-----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.nicinfo
+esxcli network nic queue filterclass list >> $RDIR/$HNAME.nicinfo
+echo "                                                                                                                 " >> $RDIR/$HNAME.nicinfo
+echo "-----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.nicinfo
+echo "| NIC Checksum Info |                                                                                            " >> $RDIR/$HNAME.nicinfo
+echo "-----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.nicinfo
+esxcli network nic cso get >> $RDIR/$HNAME.nicinfo
+echo "                                                                                                                 " >> $RDIR/$HNAME.nicinfo
+echo "-----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.nicinfo
+echo "| NIC Settings (software configuration) Info                                                                     " >> $RDIR/$HNAME.nicinfo
+echo "-----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.nicinfo
+esxcli network nic software list >> $RDIR/$HNAME.nicinfo
+echo "                                                                                                                 " >> $RDIR/$HNAME.nicinfo
+echo "----------------------------------------------------------------------------------------------------------------" > $RDIR/$HNAME.nicinfo
+echo "$HNAME VMWare Host NIC Adapter and Configuration Info                                                           " >> $RDIR/$HNAME.nicinfo
+echo "----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.nicinfo
+echo "                                                                                                                " >> $RDIR/$HNAME.nicinfo
+echo "----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.nicinfo
+echo "| NICs SR-IOV Passthrough Info |                                                                                " >> $RDIR/$HNAME.nicinfo
+echo "----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.nicinfo
+esxcli network sriovnic list >> $RDIR/$HNAME.nicinfo
+echo "----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.nicinfo
+echo "                                                                                                                " >> $RDIR/$HNAME.nicinfo
+echo "Mixed Mode       :" >> $RDIR/$HNAME.nicinfo
+echo "SR-IOV Only Mode :" >> $RDIR/$HNAME.nicinfo
+echo "Non SR-IOV Mode  :" >> $RDIR/$HNAME.nicinfo
+echo "                                                                                                                " >> $RDIR/$HNAME.nicinfo
+echo "----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.nicinfo
+echo "                                                                                                                " >> $RDIR/$HNAME.nicinfo
+echo "----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.nicinfo
+echo "| Virtual Switch Info |                                                                                         " >> $RDIR/$HNAME.nicinfo
+echo "----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.nicinfo
+echo "| Distrubiuted Switch Info |                                                                                    " >> $RDIR/$HNAME.nicinfo
+echo "----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.nicinfo
+esxcli network vswitch dvs vmware list >> $RDIR/$HNAME.nicinfo
+echo "                                                                                                                " >> $RDIR/$HNAME.nicinfo
+echo "----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.nicinfo
+echo "| Standard Switch Info |                                                                                        " >> $RDIR/$HNAME.nicinfo
+echo "----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.nicinfo
+esxcli network vswitch standard list >> $RDIR/$HNAME.nicinfo
+echo "                                                                                                                " >> $RDIR/$HNAME.nicinfo
+echo "----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.nicinfo
+echo "                                                                                                                " >> $RDIR/$HNAME.nicinfo
+echo "----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.sysloginfo
+echo "| Syslog Config Info |                                                                                          " >> $RDIR/$HNAME.sysloginfo
+echo "----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.sysloginfo
+SYSLOGDSTAT=$(/etc/init.d/vmsyslogd status)
+echo "Syslogd Status: $SYSLOGDSTAT" >> $RDIR/$HNAME.sysloginfo
+cat /etc/vmsyslog.conf |grep "logdir" |grep -v "logdir_unique" >> $RDIR/$HNAME.sysloginfo
+cat /etc/vmsyslog.conf |grep "loghost" >> $RDIR/$HNAME.sysloginfo
+echo "                                                                                                                " >> $RDIR/$HNAME.nicinfo
+echo "----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.sysloginfo
+echo "                                                                                                                " >> $RDIR/$HNAME.nicinfo
+echo "----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.lbinfo
+echo "| Load Balancer State Info                                                                                      " >> $RDIR/$HNAME.lbinfo
+echo "----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.lbinfo
+esxcli network nic queue loadbalancer state list >> $RDIR/$HNAME.lbinfo
+echo "| Load Balancer Plugin Info                                                                                     " >> $RDIR/$HNAME.lbinfo
+echo "----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.lbinfo
+esxcli network nic queue loadbalancer plugin list >> $RDIR/$HNAME.lbinfo
+echo "                                                                                                                 " >> $RDIR/$HNAME.lbinfo
+echo "-----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.lbinfo
+
+#esxcli network nic coalesce low get -n $NIC
+#esxcli network nic coalesce high get -n $NIC
+#echo "| NIC Buffer Info                                                                                              " >> $RDIR/$HNAME.systemreport
+#echo "---------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.systemreport
+#esxcli network nic ring current get -n vmnic0 >> $RDIR/$HNAME.systemreport
+#esxcli network nic ring preset get -n vmnic0 >> $RDIR/$HNAME.systemreport
+#echo "| NIC VLAN Info                                                                                                " >> $RDIR/$HNAME.systemreport
+#echo "---------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.systemreport
+#esxcli network nic vlan stats get -n vmnic0 >> $RDIR/$HNAME.systemreport
+#echo "| NIC Statistics                                                                                               " >> $RDIR/$HNAME.systemreport
+#echo "---------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.systemreport
+#esxcli network nic stats get -n $NIC
+
+echo "----------------------------------------------------------------------------------------------------------------" > $RDIR/$HNAME.storageinfo
+echo "$HNAME VMWare Host Storage and Datastore Information                                                            " >> $RDIR/$HNAME.storageinfo
+echo "----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.storageinfo
+echo "                                                                                                                " >> $RDIR/$HNAME.storageinfo
+echo "----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.storageinfo
+echo "| Storage List |                                                                                                " >> $RDIR/$HNAME.storageinfo
+echo "----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.storageinfo
+esxcli storage vmfs extent list >> $RDIR/$HNAME.storageinfo
+echo "                                                                                                                " >> $RDIR/$HNAME.storageinfo
+echo "----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.storageinfo
+
+echo "----------------------------------------------------------------------------------------------------------------" > $RDIR/$HNAME.moduleinfo
+echo "$HNAME VMWare Host Module Usage Information                                                                     " >> $RDIR/$HNAME.moduleinfo
+echo "----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.moduleinfo
+echo "                                                                                                                " >> $RDIR/$HNAME.moduleinfo
+echo "----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.moduleinfo
+echo "| System Module Info |                                                                                          " >> $RDIR/$HNAME.moduleinfo
+echo "----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.moduleinfo
+esxcli system module list >> $RDIR/$HNAME.moduleinfo
+echo "----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.moduleinfo
+
+#----------------------------
+# VM INFO
+#----------------------------
+echo "-----------------------------------------------------------------------------------------------------------------" > $RDIR/$HNAME.vminfo
+echo "$HNAME VMWare Host VM Information                                                                                " >> $RDIR/$HNAME.vminfo
+echo "-----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.vminfo
+echo "                                                                                                                 " >> $RDIR/$HNAME.vminfo
+echo "-----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.vminfo
+echo "| VM Info                                                                                                        " >> $RDIR/$HNAME.vminfo
+echo "-----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.vminfo
+vim-cmd vmsvc/getallvms >> $RDIR/$HNAME.vminfo
+echo "                                                                                                                 " >> $RDIR/$HNAME.vminfo
+echo "-----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.vminfo
+echo "" >> $RDIR/$HNAME.vminfo
+echo "| VM .vmx List                                                                                                   " >> $RDIR/$HNAME.vminfo
+echo "-----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.vminfo
+esxcli vm process list |grep ".vmx" >> $RDIR/$HNAME.vminfo
+echo "                                                                                                                 " >> $RDIR/$HNAME.vminfo
+echo "-----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.vminfo
+echo "                                                                                                                 " >> $RDIR/$HNAME.vminfo
+echo "-----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.vminfo
+echo "| VM network Info                                                                                                " >> $RDIR/$HNAME.vminfo
+echo "-----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.vminfo
+esxcli network vm list >> $RDIR/$HNAME.vminfo
+echo "                                                                                                                 " >> $RDIR/$HNAME.vminfo
+echo "-----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.vminfo
+
+#----------------------------
+# VM IMAGE INFO
+#----------------------------
+### /usr/lib/vmware/isoimages
+echo "-----------------------------------------------------------------------------------------------------------------" > $RDIR/$HNAME.imageinfo
+echo "$HNAME VMWare Host VM .iso Image Information                                                                     " >> $RDIR/$HNAME.imageinfo
+echo "-----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.imageinfo
+
+find /vmfs/ |grep "windows.iso" > $RDIR/$HNAME.imagelist
+find /vmfs/ |grep "linux.iso" >> $RDIR/$HNAME.imagelist
+find /vmfs/ |grep "isoimages_manifest.txt" >> $RDIR/$HNAME.imagelist
+
+IMGLINE=$(cat $RDIR/$HNAME.imagelist |wc -l)
+IM=1
+	while [ "$IM" -le "$IMGLINE" ]; do
+		CURRENTLINE=$(sed -n $IM{p} $RDIR/$HNAME.imagelist)
+		ls -lh $CURRENTLINE >> $RDIR/$HNAME.imageinfo
+	IM=$(( IM + 1 ))
+	done
+echo "                                                                                                                 " >> $RDIR/$HNAME.imageinfo
+echo "-----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.imageinfo
+
+echo "                                                                                                                 " >> $RDIR/$HNAME.imageinfo
+echo "-----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.imageinfo
+echo "| VM isoimage Usage by Distro/OS |                                                                               " >> $RDIR/$HNAME.imageinfo
+echo "-----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.imageinfo
+MANIFILE=$(find /vmfs/ |grep "isoimages_manifest.txt" |grep -v ".sig")
+cat $MANIFILE >> $RDIR/$HNAME.imageinfo
+echo "                                                                                                                 " >> $RDIR/$HNAME.imageinfo
+echo "-----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.imageinfo
+#rm $RDIR/$HNAME.imagelist
+
+
+echo "                                                                                                                 " >> $RDIR/$HNAME.vibinfo
+echo "-----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.vibinfo
+echo "| ESXI Host Software WIB Info                                                                                    " >> $RDIR/$HNAME.vibinfo
+echo "-----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.vibinfo
+echo "Software Acceptance:" >> $RDIR/$HNAME.vibinfo
+esxcli software acceptance get >> $RDIR/$HNAME.vibinfo
+echo "-----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.vibinfo
+esxcli software vib list >> $RDIR/$HNAME.vibinfo
+echo "-----------------------------------------------------------------------------------------------------------------" >> $RDIR/$HNAME.vibinfo
+
+#------------------------------
+# SYSTEMREPORT.HTML
+#------------------------------
+cat > $RDIR/$HNAME-systemreport.html << EOF
+<!DOCTYPE html>
+<html>
+<head>
+<title>TaliaOppy</title>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+<link rel="stylesheet" type="text/css" href="/static/css/style.css">
+</head>
+<body>
+<div class="nav">
+<h2 class="main_title">$HNAME VMWare Host System Information Report</h2>
+<p class="date">$RDATE</p>
+<hr class="line">
+</div>
+EOF
+
+	echo "<div class="cards">" >> $RDIR/$HNAME-systemreport.html
+	echo "<div class="card">" >> $RDIR/$HNAME-systemreport.html
+	echo "<h5 class="card__title">Host and System Information</h5><br>" >> $RDIR/$HNAME-systemreport.html
+	echo "<p class="card__apply">" >> $RDIR/$HNAME-systemreport.html
+	echo "<br>" >> $RDIR/$HNAME-systemreport.html
+	echo "<a href=$LINKHEAD/$HNAME.systeminfo>Inventory & System Report</a><br>" >> $RDIR/$HNAME-systemreport.html
+	echo "<b>ESX Version and Install Date</b><br>" >> $RDIR/$HNAME-systemreport.html
+	cat $RDIR/$HNAME.systeminfo |grep "ESXI Version:" |cut -d "|" -f2 >> $RDIR/$HNAME-systemreport.html
+	echo "<br>" >> $RDIR/$HNAME-systemreport.html
+	cat $RDIR/$HNAME.systeminfo |grep "ESXI Install Time:" |cut -d "|" -f2 >> $RDIR/$HNAME-systemreport.html
+	echo "<br>" >> $RDIR/$HNAME-systemreport.html
+	echo "<a href=$LINKHEAD/$HNAME.moduleinfo>Usage/Loaded Modules List</a><br>" >> $RDIR/$HNAME-systemreport.html
+	echo "<a href=$LINKHEAD/$HNAME.imageinfo>VM Image File Info</a><br>" >> $RDIR/$HNAME-systemreport.html
+	echo "<a href=$LINKHEAD/$HNAME.vibinfo>ESX Software Information</a><br>" >> $RDIR/$HNAME-systemreport.html
+	echo "</p>" >> $RDIR/$HNAME-systemreport.html
+	echo "</div>" >> $RDIR/$HNAME-systemreport.html
+
+	echo "<div class="card">" >> $RDIR/$HNAME-systemreport.html
+	echo "<h5 class="card__title">User Account Information</h5><br>" >> $RDIR/$HNAME-systemreport.html
+	echo "<br>" >> $RDIR/$HNAME-systemreport.html
+	echo "<p class="card__apply">" >> $RDIR/$HNAME-systemreport.html
+	echo "<br>" >> $RDIR/$HNAME-systemreport.html
+	echo "<a href=$LINKHEAD/$HNAME.userinfo>User Information Report</a><br>" >> $RDIR/$HNAME-systemreport.html
+	echo "</p>" >> $RDIR/$HNAME-systemreport.html
+	echo "</div>" >> $RDIR/$HNAME-systemreport.html
+
+	echo "<div class="card">" >> $RDIR/$HNAME-systemreport.html
+	echo "<h5 class="card__title">Network Config and NICs Information</h5><br>" >> $RDIR/$HNAME-systemreport.html
+	echo "<p class="card__apply">" >> $RDIR/$HNAME-systemreport.html
+	echo "<br>" >> $RDIR/$HNAME-systemreport.html
+	echo "<a href=$LINKHEAD/$HNAME.nwinfo>Network Configuration Report</a><br>" >> $RDIR/$HNAME-systemreport.html
+	echo "<br>" >> $RDIR/$HNAME-systemreport.html
+	echo "<a href=$LINKHEAD/$HNAME.nicinfo>NIC Adapter Report</a><br>" >> $RDIR/$HNAME-systemreport.html
+	echo "<a href=$LINKHEAD/$HNAME.dnsinfo>DNS Info</a><br>" >> $RDIR/$HNAME-systemreport.html
+	echo "<a href=$LINKHEAD/$HNAME.lbinfo>Load Balancer Configuration Info</a><br>" >> $RDIR/$HNAME-systemreport.html
+	echo "<a href=$LINKHEAD/$HNAME.fwinfo>Firewall Configuration Info</a><br>" >> $RDIR/$HNAME-systemreport.html
+	echo "</p>" >> $RDIR/$HNAME-systemreport.html
+	echo "</div>" >> $RDIR/$HNAME-systemreport.html
+
+	echo "<div class="card">" >> $RDIR/$HNAME-systemreport.html
+	echo "<h5 class="card__title">Connections Information</h5><br>" >> $RDIR/$HNAME-systemreport.html
+	echo "<p class="card__apply">" >> $RDIR/$HNAME-systemreport.html
+	echo "<br>" >> $RDIR/$HNAME-systemreport.html
+	echo "<a href=$LINKHEAD/$HNAME.conninfo>Connection List</a><br>" >> $RDIR/$HNAME-systemreport.html
+	echo "<br>" >> $RDIR/$HNAME-systemreport.html
+	echo "<a href=$LINKHEAD/$HNAME.conninfo>Listening Port List</a><br>" >> $RDIR/$HNAME-systemreport.html
+	echo "</p>" >> $RDIR/$HNAME-systemreport.html
+	echo "</div>" >> $RDIR/$HNAME-systemreport.html
+
+	echo "<div class="card">" >> $RDIR/$HNAME-systemreport.html
+	echo "<h5 class="card__title">VM Information</h5><br>" >> $RDIR/$HNAME-systemreport.html
+	echo "<p class="card__apply">" >> $RDIR/$HNAME-systemreport.html
+	echo "<br>" >> $RDIR/$HNAME-systemreport.html
+	echo "<a href=$LINKHEAD/$HNAME.vminfo>VM List</a><br>" >> $RDIR/$HNAME-systemreport.html
+	echo "</p>" >> $RDIR/$HNAME-systemreport.html
+	echo "</div>" >> $RDIR/$HNAME-systemreport.html
+
+	echo "<div class="card">" >> $RDIR/$HNAME-systemreport.html
+	echo "<h5 class="card__title">Storage Information</h5><br>" >> $RDIR/$HNAME-systemreport.html
+	echo "<p class="card__apply">" >> $RDIR/$HNAME-systemreport.html
+	echo "<br>" >> $RDIR/$HNAME-systemreport.html
+	echo "<a href=$LINKHEAD/$HNAME.storageinfo>Storage Info</a><br>" >> $RDIR/$HNAME-systemreport.html
+	echo "</p>" >> $RDIR/$HNAME-systemreport.html
+	echo "</div>" >> $RDIR/$HNAME-systemreport.html
+	
+	echo "</div>" >> $RDIR/$HNAME-systemreport.html
+	echo "</body>" >> $RDIR/$HNAME-systemreport.html
+	echo "</html>" >> $RDIR/$HNAME-systemreport.html
+
+#------------------------------
+# BIGRREPORT.HTML
+#------------------------------
+cat > $RDIR/$HNAME-bigr.html << EOF
+<!DOCTYPE html>
+<html>
+<head>
+<title>TaliaOppy</title>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+<link rel="stylesheet" type="text/css" href="/static/css/style.css">
+</head>
+<body>
+<div class="nav_bigr">
+<p class="main_title_bigr">$HNAME VMWare Host BIGR Report</p>
+<p class="date">$RDATE</p>
+<hr class="line">
+</div>
+EOF
+
+cat >> $RDIR/$HNAME-bigr.html << EOF
+<p class="heading_bigr">3. VARLIK GRUPLARINA YÖNELİK GÜVENLİK TEDBİRLERİ<br>
+3.1   Ağ ve Sistem Güvenliği<br>
+3.1.9 Sanallaştırma Güvenliği</p>
+$LINE
+EOF
+
+	echo "<div class="cards">" >> $RDIR/$HNAME-bigr.html
+
+	echo "<div class="card">" >> $RDIR/$HNAME-bigr.html
+	echo "<h5 class="card__title">3.1.9.1</h5><br>" >> $RDIR/$HNAME-bigr.html
+	echo "<p class="card__apply">Güncel sürümlerin kullanılması" >> $RDIR/$HNAME-bigr.html
+	echo "<br>" >> $RDIR/$HNAME-bigr.html
+	echo "<a href=$LINKHEAD/$HNAME.systeminfo>ESX Information</a><br>" >> $RDIR/$HNAME-bigr.html
+	echo "</p>" >> $RDIR/$HNAME-bigr.html
+	echo "</div>" >> $RDIR/$HNAME-bigr.html
+
+	echo "<div class="card">" >> $RDIR/$HNAME-bigr.html
+	echo "<h5 class="card__title">3.1.9.2</h5><br>" >> $RDIR/$HNAME-bigr.html
+	echo "<p class="card__apply">Kapasite planlaması hangi kriterlere göre yapılmaktadır?" >> $RDIR/$HNAME-bigr.html
+	echo "<br>" >> $RDIR/$HNAME-bigr.html
+	echo "Mülakat<br>" >> $RDIR/$HNAME-bigr.html
+	echo "</p>" >> $RDIR/$HNAME-bigr.html
+	echo "</div>" >> $RDIR/$HNAME-bigr.html
+
+	echo "<div class="card">" >> $RDIR/$HNAME-bigr.html
+	echo "<h5 class="card__title">3.1.9.3</h5><br>" >> $RDIR/$HNAME-bigr.html
+	echo "<p class="card__apply">Kullanılmayan sanal makineler kapatılmalıdır" >> $RDIR/$HNAME-bigr.html
+	echo "<br>" >> $RDIR/$HNAME-bigr.html
+	echo "<a href=$LINKHEAD/$HNAME.vminfo>ESX Virtual Machines Information</a><br>" >> $RDIR/$HNAME-bigr.html
+	echo "</p>" >> $RDIR/$HNAME-bigr.html
+	echo "</div>" >> $RDIR/$HNAME-bigr.html
+
+	echo "<div class="card">" >> $RDIR/$HNAME-bigr.html
+	echo "<h5 class="card__title">3.1.9.4</h5><br>" >> $RDIR/$HNAME-bigr.html
+	echo "<p class="card__apply">İşletim sistemi sıkılaştırma ve güvenlik kontrollerinin yapılması" >> $RDIR/$HNAME-bigr.html
+	echo "<br>" >> $RDIR/$HNAME-bigr.html
+	echo "Bkz.: Server Reports<br>" >> $RDIR/$HNAME-bigr.html
+	echo "<a href=$LINKHEAD/$HNAME.vminfo>VMWare Host VM List</a><br>" >> $RDIR/$HNAME-bigr.html
+	echo "</p>" >> $RDIR/$HNAME-bigr.html
+	echo "</div>" >> $RDIR/$HNAME-bigr.html
+
+	echo "<div class="card">" >> $RDIR/$HNAME-bigr.html
+	echo "<h5 class="card__title">3.1.9.5</h5><br>" >> $RDIR/$HNAME-bigr.html
+	echo "<p class="card__apply">Sözleşmelerde ve tedarik şartnamelerinde sanallaştırma güvenliği nasıl ele alınmaktadır?" >> $RDIR/$HNAME-bigr.html
+	echo "<br>" >> $RDIR/$HNAME-bigr.html
+	echo "Mülakat<br>" >> $RDIR/$HNAME-bigr.html
+	echo "</p>" >> $RDIR/$HNAME-bigr.html
+	echo "</div>" >> $RDIR/$HNAME-bigr.html
+	
+	echo "<div class="card">" >> $RDIR/$HNAME-bigr.html
+	echo "<h5 class="card__title">3.1.9.6</h5><br>" >> $RDIR/$HNAME-bigr.html
+	echo "<p class="card__apply">Kurumda sanal makine imajlarının bütünlüğü kontrol edilmekte midir?" >> $RDIR/$HNAME-bigr.html
+	echo "<br>" >> $RDIR/$HNAME-bigr.html
+	echo "<a href=$LINKHEAD/$HNAME.imageinfo>VMWare Host VM Image Integrity and Information Report</a><br>" >> $RDIR/$HNAME-bigr.html
+	echo "</p>" >> $RDIR/$HNAME-bigr.html
+	echo "</div>" >> $RDIR/$HNAME-bigr.html
+
+	echo "<div class="card">" >> $RDIR/$HNAME-bigr.html
+	echo "<h5 class="card__title">3.1.9.7</h5><br>" >> $RDIR/$HNAME-bigr.html
+	echo "<p class="card__apply">Kurumda kullanılan servisler,protokoller,port numaraları dokümante edilmekte midir?" >> $RDIR/$HNAME-bigr.html
+	echo "<br>" >> $RDIR/$HNAME-bigr.html
+	echo "Bkz.: Server Reports -> Service List reports<br>" >> $RDIR/$HNAME-bigr.html
+	echo "<br>" >> $RDIR/$HNAME-bigr.html
+	echo "<a href=$LINKHEAD/$HNAME.moduleinfo>VMWare Host Module Usage Information</a><br>" >> $RDIR/$HNAME-bigr.html
+	echo "</p>" >> $RDIR/$HNAME-bigr.html
+	echo "</div>" >> $RDIR/$HNAME-bigr.html
+
+	echo "<div class="card">" >> $RDIR/$HNAME-bigr.html
+	echo "<h5 class="card__title">3.1.9.8</h5><br>" >> $RDIR/$HNAME-bigr.html
+	echo "<p class="card__apply">Operasyon ve test ortamları birbirinden izole edilmiş midir?" >> $RDIR/$HNAME-bigr.html
+	echo "<br>" >> $RDIR/$HNAME-bigr.html
+	echo "</p>" >> $RDIR/$HNAME-bigr.html
+	echo "</div>" >> $RDIR/$HNAME-bigr.html
+
+	echo "<div class="card">" >> $RDIR/$HNAME-bigr.html
+	echo "<h5 class="card__title">3.1.9.9</h5><br>" >> $RDIR/$HNAME-bigr.html
+	echo "<p class="card__apply">Sanallaştırma sistemleri yönetim arayüzlerine erişim, tanımlanan yetki ile güvenli bir şekilde yapılmalıdır.<br>" >> $RDIR/$HNAME-bigr.html
+	echo "<br>" >> $RDIR/$HNAME-bigr.html
+	echo "<a href=$LINKHEAD/$HNAME.userinfo>VMWare Host Account Information Report</a><br>" >> $RDIR/$HNAME-bigr.html
+	echo "<a href=$LINKHEAD/$HNAME.userinfo>VMWare Host Listening Service Report</a><br>" >> $RDIR/$HNAME-bigr.html
+	echo "</p>" >> $RDIR/$HNAME-bigr.html
+	echo "</div>" >> $RDIR/$HNAME-bigr.html
+
+	echo "<div class="card">" >> $RDIR/$HNAME-bigr.html
+	echo "<h5 class="card__title">3.1.9.10</h5><br>" >> $RDIR/$HNAME-bigr.html
+	echo "<p class="card__apply">Kuruma ait ve yetkili otoriteden alınmış sertifikalar mı Kullanılmaktadır?" >> $RDIR/$HNAME-bigr.html
+	echo "<br>" >> $RDIR/$HNAME-bigr.html
+	echo "<br>" >> $RDIR/$HNAME-bigr.html
+	echo "VMware Certificate Authority (VMCA) menu control from Web Interface<br>" >> $RDIR/$HNAME-bigr.html
+	echo "</p>" >> $RDIR/$HNAME-bigr.html
+	echo "</div>" >> $RDIR/$HNAME-bigr.html
+
+	echo "<div class="card">" >> $RDIR/$HNAME-bigr.html
+	echo "<h5 class="card__title">3.1.9.11</h5><br>" >> $RDIR/$HNAME-bigr.html
+	echo "<p class="card__apply">Sanal Makineler arası trafiğin kontrol edilmesi" >> $RDIR/$HNAME-bigr.html
+	echo "<br>" >> $RDIR/$HNAME-bigr.html
+	echo "<a href=$LINKHEAD/$HNAME.nicinfo>VMWare Host NIC Configuration Info</a><br>" >> $RDIR/$HNAME-bigr.html
+	echo "</p>" >> $RDIR/$HNAME-bigr.html
+	echo "</div>" >> $RDIR/$HNAME-bigr.html
+
+	echo "<div class="card">" >> $RDIR/$HNAME-bigr.html
+	echo "<h5 class="card__title">3.1.9.12</h5><br>" >> $RDIR/$HNAME-bigr.html
+	echo "<p class="card__apply">Depolama Ortamları ile İletişim Güvenliğinin Sağlanması" >> $RDIR/$HNAME-bigr.html
+	echo "<br>" >> $RDIR/$HNAME-bigr.html
+	echo "<a href=$LINKHEAD/$HNAME.storageinfo>VMWare Host Storage and Datastore Information</a><br>" >> $RDIR/$HNAME-bigr.html
+	echo "</p>" >> $RDIR/$HNAME-bigr.html
+	echo "</div>" >> $RDIR/$HNAME-bigr.html
+
+	echo "<div class="card">" >> $RDIR/$HNAME-bigr.html
+	echo "<h5 class="card__title">3.1.9.13</h5><br>" >> $RDIR/$HNAME-bigr.html
+	echo "<p class="card__apply">Fiziksel kaynakların izole edilmesi" >> $RDIR/$HNAME-bigr.html
+	echo "<br>" >> $RDIR/$HNAME-bigr.html
+	echo "</p>" >> $RDIR/$HNAME-bigr.html
+	echo "</div>" >> $RDIR/$HNAME-bigr.html
+
+	echo "</div>" >> $RDIR/$HNAME-bigr.html
+	echo "</body>" >> $RDIR/$HNAME-bigr.html
+	echo "</html>" >> $RDIR/$HNAME-bigr.html
+
+
+test -e /tmp/${HNAME}-report.tar.gz && rm -rf /tmp/${HNAME}.tar.gz
+cd /tmp/oppyreports/
+tar -czf /tmp/${HNAME}-report.tar.gz /tmp/oppyreports/*

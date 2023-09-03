@@ -1,0 +1,250 @@
+#!/bin/bash
+
+test ! -z "${1}" && FQDN="${1}"
+test -z "${FQDN}" && FQDN="_"
+
+DEBIAN_FRONTEND=noninteractive apt -yq -o Dpkg::Options::="--force-confnew" install nginx libnginx-mod-rtmp ffmpeg ssl-cert
+
+if [ ! -d "/etc/letsencrypt/live/${FQDN}" ]
+then
+	CERT="/etc/ssl/certs/ssl-cert-snakeoil.pem"
+	PRIVATE_KEY="/etc/ssl/private/ssl-cert-snakeoil.key"
+else
+	CERT="/etc/letsencrypt/live/${FQDN}/fullchain.pem"
+	PRIVATE_KEY="/etc/letsencrypt/live/${FQDN}/privkey.pem"
+fi
+
+APP_PATH="/opt/stream"
+SCRIPT_PATH="${APP_PATH}/scripts"
+CONTENT_PATH="${APP_PATH}/contents"
+
+grep -q "^rtmp {" /etc/nginx/nginx.conf || cat >> /etc/nginx/nginx.conf << EOF
+rtmp {
+	server {
+		listen 1935;
+		hls on;
+		hls_path /var/www/stream/hls;
+		hls_keys on;
+		hls_fragments_per_key 2;
+		hls_nested on;
+		hls_fragment_naming system;
+
+		dash on;
+                dash_path /var/www/stream/dash;
+                dash_nested on;
+
+		chunk_size 4096;
+		allow publish 127.0.0.1;
+		deny publish all;
+
+		application live {
+			live on;
+			record off;
+		}
+	}
+}
+EOF
+
+cat > /etc/nginx/sites-available/stream << EOF
+server {
+	listen 443 ssl;
+	listen [::]:443 ssl;
+	
+	server_name ${FQDN};
+	
+	ssl_protocols TLSv1.2 TLSv1.3;
+	ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384;
+	ssl_prefer_server_ciphers off;
+	
+	ssl_session_timeout 1d;
+	ssl_session_cache shared:SSL:10m;  # about 40000 sessions
+	ssl_session_tickets off;
+
+	ssl_certificate ${CERT};
+	ssl_certificate_key ${PRIVATE_KEY};
+
+	root /var/www/stream;
+
+	# Add index.php to the list if you are using PHP
+	index index.php index.html;
+
+	# rtmp stat
+	location /stat {
+		rtmp_stat all;
+	        rtmp_stat_stylesheet stat.xsl;
+	}
+	
+	location /stat.xsl {
+		alias /var/www/stream/stat.xsl;
+	}
+
+	# rtmp control
+	location /control {
+		rtmp_control all;
+	}
+	
+	location /keys {
+		root /var/www/stream;
+	}
+
+	location /hls {
+		types {
+			application/vnd.apple.mpegurl m3u8;
+		}
+		root /var/www/stream;
+		add_header Cache-Control no-cache;
+		add_header Access-Control-Allow-Origin *;
+	}
+
+	location /dash {
+		root /var/www/stream;
+		add_header Cache-Control no-cache;
+
+		# To avoid issues with cross-domain HTTP requests (e.g. during development)
+		add_header Access-Control-Allow-Origin *;
+	}
+
+	location / {
+		try_files \$uri \$uri/ =404;
+	}
+}
+
+server {
+	listen 80;
+	listen [::]:80;
+
+	server_name ${FQDN};
+
+	location / {
+		return 301 https://\$host\$request_uri;
+	}
+}
+EOF
+
+ln -s /etc/nginx/sites-{available,enabled}/stream
+rm -f /etc/nginx/sites-enabled/default
+
+install -dD -o www-data -g www-data /var/www/stream
+
+systemctl restart nginx.service
+
+install -dD ${APP_PATH}/{scripts,contents}
+install -dD "/etc/systemd/system"
+
+# Delayed Stream Script and Service
+cat > "${SCRIPT_PATH}/delayed-stream" << EOF
+#!/bin/bash
+
+APP_PATH="${APP_PATH}"
+CONTENT_PATH="\${APP_PATH}/contents"
+HLS_PATH="/var/www/stream/hls"
+DASH_PATH="/var/www/stream/dash"
+STREAM_NAME="delayed-stream"
+MINUTE="30"
+
+test -d "\${HLS_PATH}/\${STREAM_NAME}" && rm -rf \${HLS_PATH}/\${STREAM_NAME}/*
+test -d "\${DASH_PATH}/\${STREAM_NAME}" && rm -rf \${DASH_PATH}/\${STREAM_NAME}/*
+
+while SVIDEO="\$(ls -tr \${CONTENT_PATH}/*.mp4 | tail -n\${MINUTE} | head -n1)"
+do
+	ffmpeg -re -i "\${SVIDEO}" -f flv -c copy "rtmp://localhost/live/\${STREAM_NAME}"
+done
+EOF
+chmod +x "${SCRIPT_PATH}/delayed-stream"
+cat > "/etc/systemd/system/delayed-stream.service" << EOF
+[Unit]
+Description=Delayed Stream
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+ExecStart=${SCRIPT_PATH}/delayed-stream
+Restart=always
+RestartSec=2sec
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# Record Stream Script and Service
+cat > "${SCRIPT_PATH}/record-stream" << EOF
+#!/bin/bash
+
+APP_PATH="${APP_PATH}"
+CONTENT_PATH="\${APP_PATH}/contents"
+
+while true
+do
+	ffmpeg -t 60 -i "rtsp://USERNAME:PASSWORD@IP_ADDRESS:PORT/STREAM_CHANNEL_URI" -c copy "\${CONTENT_PATH}/capture-\$(date "+%H-%M-%S").mp4"
+done
+EOF
+chmod +x "${SCRIPT_PATH}/record-stream"
+cat > "/etc/systemd/system/record-stream.service" << EOF
+[Unit]
+Description=Record Stream
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+ExecStart=${SCRIPT_PATH}/record-stream
+Restart=always
+RestartSec=2sec
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# Record Cleaner Script and Service
+cat > "${SCRIPT_PATH}/record-cleaner" << EOF
+#!/bin/bash
+
+APP_PATH="/opt/stream"
+CONTENT_PATH="\${APP_PATH}/contents"
+MINUTE="30"
+DAY_MINUTE="1440"
+
+while true
+do
+	if [ \$(ls -t \${CONTENT_PATH}/*.mp4 | wc -l) -eq "\${DAY_MINUTE}" ]
+	then
+		rm \$(ls \${CONTENT_PATH}/*.mp4 | sort | head -n\$((DAY_MINUTE-MINUTE)))
+	fi
+	sleep \$((MINUTE*2))
+done
+EOF
+chmod +x "${SCRIPT_PATH}/record-cleaner"
+cat > "/etc/systemd/system/record-cleaner.service" << EOF
+[Unit]
+Description=Record Cleaner
+
+[Service]
+ExecStart=${SCRIPT_PATH}/record-stream
+Restart=always
+RestartSec=2sec
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+systemctl daemon-reload
+systemctl enable record-stream.service record-cleaner.service delayed-stream.service
+
+# Web Player
+cat > /var/www/stream/index.html << EOF
+<!DOCTYPE html>
+<html lang="tr">
+	<head>
+		<meta charset="UTF-8">
+		<title>Stream Server</title>
+		<script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@clappr/player@latest/dist/clappr.min.js"></script>
+	</head>
+	<body>
+		<div id="player"></div>
+		<script>
+			var player = new Clappr.Player({source: "/hls/delayed-stream/index.m3u8", parentId: "#player", autoPlay: true, controls: false});
+		</script>
+	</body>
+</html>
+EOF
+chown www-data:www-data /var/www/stream/index.html
+
