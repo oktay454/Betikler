@@ -207,7 +207,7 @@ while true
 do
 	if [ \$(ls -t \${CONTENT_PATH}/*.mp4 | wc -l) -eq "\${DAY_MINUTE}" ]
 	then
-		rm \$(ls \${CONTENT_PATH}/*.mp4 | sort | head -n\$((DAY_MINUTE-MINUTE)))
+		rm \$(ls \${CONTENT_PATH}/*.mp4 | sort | head -n\$((DAY_MINUTE-(MINUTE*2))))
 	fi
 	sleep \$((MINUTE*2))
 done
