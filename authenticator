@@ -207,4 +207,4 @@ function SendEmail()
 		-s "${SUBJECT}" <<< "${MESSAGE}" > /dev/null 2>&1 || return 110
 }
 
-Main ${*}
+Main
