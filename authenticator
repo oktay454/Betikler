@@ -1,0 +1,210 @@
+#!/bin/bash
+#
+# Writed by Kemal Oktay Aktoğan (aka oktay454)
+# Contact: oktay@e.email
+#
+
+function Usage()
+{
+	cat << EOF
+LDAP Authentication with SMS/Email OTP
+
+Usage:
+-r REALM (example enterprise.local)
+-u USER_NAME
+-p USER_PASSWORD
+-o OTP_CODE
+-t (For authentication with username and password only) 
+-e (To select a different environment file)
+
+
+The first step of authentication should be a password.
+Because this is required to verify user identity and send the OTP code via SMS or email.
+(example ${0} -r enterprise.local -u USER_NAME -p USER_PASSWORD)
+
+Run this again with the incoming OTP code
+(example ${0} -r enterprise.local -u USER_NAME -o OTP_CODE)
+
+If both runs exit successfully, authentication with OTP was successful.
+
+Exit Codes Status:
+100) Username and password information in is incorrect
+110) SMS/Email could not be sent
+120) OTP code has expired
+130) OTP code is incorrect
+140) Problem accesing to temporary directory
+EOF
+}
+
+if [ "$#" -eq 0 ]
+then
+	Usage
+	exit 2
+fi
+
+while getopts "hte:u:p:r:o:" OPTION
+do
+	case "${OPTION}" in
+		h)
+			Usage
+			exit
+			;;
+		r)
+			REALM="${OPTARG}"
+			;;
+		u)
+			USER_NAME="${OPTARG}"
+			;;
+		p)
+			USER_PASS="${OPTARG}"
+			;;
+		o)
+			OTP_CODE="${OPTARG}"
+			;;
+		t)
+			TESTING_USER="true"
+			;;
+		e)
+			ENVIRONMENT="${OPTARG}"
+		*)
+			Usage
+			exit 2
+			;;
+	esac
+done
+
+[ -z "${REALM}" ] && Usage && exit 2
+[ -z "${USER_NAME}" ] && Usage && exit 2
+[ -n "${TESTING_USER}" ] && [ -z "${USER_PASS}" ] && Usage && exit 2
+[ -z "${USER_PASS}" ] && [ -z "${OTP_CODE}" ] && Usage && exit 2
+
+TEMP_DIR="/var/cache/otpcodes"
+DEFAULT_ENVIRONMENT="/etc/default/authenticator"
+
+if [ -z "${ENVIRONMENT}" ]
+then
+	source "${ENVIRONMENT}"
+elif [ -f "${DEFAULT_ENVIRONTMENT}" ]
+	source "${DEFAULT_ENVIRONMENT}"
+else
+	exit 1
+fi
+
+function Main()
+{
+	mkdir -p "${TEMP_DIR}/${REALM}" || return 140
+	OTP_INFO="${TEMP_DIR}/${REALM}/${USER_NAME}"
+	if [ -n "${TESTING_USER}" ]
+	then
+		UserControl || return 100
+	elif [ -z "${USER_PASS}" ] && [ -n "${OTP_CODE}" ]
+	then
+		OTPCheck
+	elif UserControl
+	then
+		OTP_CODE="$(CreateOTPCode)"
+		OTP_DATE="$(date +%s)"
+		echo "${OTP_DATE},${OTP_CODE}" > "${OTP_INFO}" || return 140
+		GetEmailAndPhoneInfo
+		SendSMS "${MOBILE_NUMBER}" "${OTP_CODE}"
+		SendEmail "${EMAIL}" "OTP" "${OTP_CODE}"
+	else
+		return 100
+	fi
+}
+
+function OTPCheck()
+{
+	test ! -f "${OTP_INFO}" && exit 1
+
+	SENDED_OTP_CODE="$(awk -F "," '{print $2}' "${OTP_INFO}")"
+	SENDED_OTP_TIMESTAMP="$(awk -F "," '{print $1}' "${OTP_INFO}")"
+
+	if ! [ "${SENDED_OTP_TIMESTAMP}" -ge "$((CURRENT_DATE-TIME_OUT_VALUE))" ]
+	then
+		exit 120
+	fi
+
+	if [ "${SENDED_OTP_CODE}" != "${OTP_CODE}" ]
+	then
+		exit 130
+	fi
+}
+
+function CreateOTPCode()
+{
+	shuf -i 000000-999999 -n 1
+}
+
+function UserControl()
+{
+	ldapwhoami -D "${USER_NAME}@${REALM}" -w "${USER_PASS}" -H "ldap://${REALM}" > /dev/null 2>&1
+}
+
+function CreateBaseDN() {
+	test -z "${1}" && return 1
+	local NUMBER=1
+	local REALM="${1//./ }"
+	for t in ${REALM}
+	do
+		local DN="${DN}DC=${t},"
+		NUMBER="$((NUMBER+1))"
+	done
+	test ! -z "${DN}" && DN=${DN::-1}
+
+	echo "${DN}"
+}
+
+function GetEmailAndPhoneInfo()
+{
+	local LDAP_QUERY
+	LDAP_QUERY="$(ldapsearch \
+		-LLL \
+		-H "ldap://${REALM}" \
+		-D "${USER_NAME}@${REALM}" \
+		-w "${USER_PASS}" \
+		-b "$(CreateBaseDN "${REALM}")" \
+		"(sAMAccountName=${USER_NAME})" mail mobile | \
+		grep -E 'mail|mobile')"
+		EMAIL="$(awk '/mail:/ { print $2 }' <<< "${LDAP_QUERY}")"
+		MOBILE_NUMBER="$(awk '/mobile:/ { print $2 }' <<< "${LDAP_QUERY}")"
+}
+
+function SendSMS()
+{
+	NUMBER="${1}"
+	MESSAGE="${2}"
+	
+	test -z "${NUMBER}" && return 2
+	XML_DATA="<SingleTextSMS>
+			<UserName>${SMSUSER}</UserName>
+			<PassWord>${SMSPASS}</PassWord>
+			<Action>0</Action>
+			<Mesgbody>${MESSAGE}</Mesgbody>
+			<Numbers>${NUMBER}</Numbers>
+			<Originator>${SMSORIGINATOR}</Originator>
+			<SDate></SDate>
+		</SingleTextSMS>"
+
+	curl \
+		--location \
+		--request POST "${SMS_URI}" \
+		--header 'Content-Type: text/xml; charset=utf-8' \
+		--data-raw "${XML_DATA}" > /dev/null 2>&1 || return 110
+}
+
+function SendEmail()
+{
+	EMAIL="${1}"
+	SUBJECT="${2}"
+	MESSAGE="${3}"
+
+	test -z "${EMAIL}" && return 2 
+	
+	mutt -e "my_hdr From: ${SENDER_EMAIL_ADDRESS,,} <${SENDER_EMAIL_ADDRESS,,}>; \
+		set smtp_url=smtp://${SENDER_EMAIL_ADDRESS}:${SENDER_EMAIL_PASS}@${EMAIL_SERVER}" \
+		"${EMAIL}" \
+		-s "${SUBJECT}" <<< "${MESSAGE}" > /dev/null 2>&1 || return 110
+}
+
+Main ${*}
