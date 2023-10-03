@@ -15,7 +15,7 @@ Usage:
 -p USER_PASSWORD
 -o OTP_CODE
 -t (For authentication with username and password only) 
--e (To select a different environment file)
+-e ENVIRONMENT_FILE (To select a different environment file)
 
 
 The first step of authentication should be a password.
