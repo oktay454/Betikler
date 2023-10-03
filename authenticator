@@ -17,7 +17,6 @@ Usage:
 -t (For authentication with username and password only) 
 -e ENVIRONMENT_FILE (To select a different environment file)
 
-
 The first step of authentication should be a password.
 Because this is required to verify user identity and send the OTP code via SMS or email.
 (example ${0} -r enterprise.local -u USER_NAME -p USER_PASSWORD)
@@ -33,6 +32,7 @@ Exit Codes Status:
 120) OTP code has expired
 130) OTP code is incorrect
 140) Problem accesing to temporary directory
+
 EOF
 }
 
