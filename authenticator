@@ -19,10 +19,10 @@ Usage:
 
 The first step of authentication should be a password.
 Because this is required to verify user identity and send the OTP code via SMS or email.
-(example ${0} -r enterprise.local -u USER_NAME -p USER_PASSWORD)
+(example: $(basename "${0}") -r enterprise.local -u USER_NAME -p USER_PASSWORD)
 
 Run this again with the incoming OTP code
-(example ${0} -r enterprise.local -u USER_NAME -o OTP_CODE)
+(example: $(basename "${0}") -r enterprise.local -u USER_NAME -o OTP_CODE)
 
 If both runs exit successfully, authentication with OTP was successful.
 
