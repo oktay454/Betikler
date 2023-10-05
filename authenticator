@@ -66,6 +66,7 @@ do
 			;;
 		e)
 			ENVIRONMENT="${OPTARG}"
+			;;
 		*)
 			Usage
 			exit 2
@@ -84,7 +85,8 @@ DEFAULT_ENVIRONMENT="/etc/default/authenticator"
 if [ -z "${ENVIRONMENT}" ]
 then
 	source "${ENVIRONMENT}"
-elif [ -f "${DEFAULT_ENVIRONTMENT}" ]
+elif [ -f "${DEFAULT_ENVIRONMENT}" ]
+then
 	source "${DEFAULT_ENVIRONMENT}"
 else
 	exit 1
