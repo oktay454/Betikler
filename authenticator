@@ -82,10 +82,10 @@ done
 TEMP_DIR="/var/cache/otpcodes"
 DEFAULT_ENVIRONMENT="/etc/default/authenticator"
 
-if [ -z "${ENVIRONMENT}" ]
+if [ -f "${ENVIRONMENT}" ] && [ -r "${ENVIRONMENT}" ]
 then
 	source "${ENVIRONMENT}"
-elif [ -f "${DEFAULT_ENVIRONMENT}" ]
+elif [ -f "${DEFAULT_ENVIRONMENT}" ] && [ -r "${DEFAULT_ENVIRONMENT}" ]
 then
 	source "${DEFAULT_ENVIRONMENT}"
 else
