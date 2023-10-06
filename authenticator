@@ -135,7 +135,7 @@ function OTPCheck()
 
 function CreateOTPCode()
 {
-	shuf -i 000000-999999 -n 1
+	shuf -i 100000-999999 -n 1
 }
 
 function UserControl()
