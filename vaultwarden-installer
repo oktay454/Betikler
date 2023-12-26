@@ -1,0 +1,51 @@
+#!/bin/bash
+set -e
+
+TEMP_DIR="$(mktemp -d)"
+trap 'rm -rf "${TEMP_DIR}"' EXIT
+
+USER_NAME="vaultwarden"
+GROUP_NAME="${USER_NAME}"
+BASE_DIR="/opt/${USER_NAME}"
+SERVICE_FILE="/etc/systemd/system/vaultwarden.service"
+ENVIRONMENT_FILE="${BASE_DIR}/environment"
+
+groupadd -r "${GROUP_NAME}" || true
+useradd -d "${BASE_DIR}" -m -r -g "${GROUP_NAME}" "${USER_NAME}" || true
+
+wget https://raw.githubusercontent.com/jjlin/docker-image-extract/main/docker-image-extract -O "${TEMP_DIR}/docker-image-extract" 
+chmod +x "${TEMP_DIR}/docker-image-extract"
+cd "${TEMP_DIR}"
+./docker-image-extract vaultwarden/server:alpine
+cd -
+
+test -f "${ENVIRONMENT_FILE}" || touch "${ENVIRONMENT_FILE}"
+rm -rf "${BASE_DIR}/web-vault/"
+install -d -o "${USER_NAME}" -g "${GROUP_NAME}" "${BASE_DIR}/web-vault/"
+cp -rf "${TEMP_DIR}/output/web-vault/" "${BASE_DIR}/"
+rm -f "${BASE_DIR}/vaultwarden"
+install -Dm0755 "${TEMP_DIR}/output/vaultwarden" "${BASE_DIR}/vaultwarden"
+install -d -o "${USER_NAME}" -g "${GROUP_NAME}" "${BASE_DIR}/data"
+chown -R ${USER_NAME}:${GROUP_NAME} "${BASE_DIR}"
+
+cat > "${SERVICE_FILE}" << SERVICE
+[Unit]
+Description=Vaultwarden
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+EnvironmentFile=${ENVIRONMENT_FILE}
+User=${USER_NAME}
+Group=${GROUP_NAME}
+WorkingDirectory=${BASE_DIR}
+ExecStart=${BASE_DIR}/vaultwarden
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+SERVICE
+
+systemctl daemon-reload
+systemctl enable vaultwarden.service
+systemctl restart vaultwarden.service
