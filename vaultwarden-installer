@@ -1,4 +1,29 @@
 #!/bin/bash
+###############################################################################################
+# Türkçe
+# =======
+# Betik, veri kaybı olmadan her zaman en son sürümü günceller.
+# Olası güvenlik açığı nedeniyle hizmet “vaultwarden” kullanıcısı ile çalıştırılıyor
+# Ortam değişkenlerini içeren dosya /opt/vaultwarden/environment konumunda bulunur.
+# Betik, henüz ön uçta Nginx gibi bir web hizmetini kurup yapılandırmaz.
+# Debian 12'de test ettim.
+#
+# Kemal Oktay Aktoğan (oktay454) tarafından yazılmıştır.
+# İletişim: oktay@e.email
+###############################################################################################
+# English
+# =======
+#
+# The script, make always update latest version without data loss.
+# Due to possible security vulnerability, the service is being run with the user “vaultwarden”
+# The file containing the environment variables is located at /opt/vaultwarden/environment.
+# The script, it does not yet install and configure a web service like Nginx on the front end.
+# I tested on Debian 12.
+#
+# Writed by Kemal Oktay Aktoğan (aka oktay454)
+# Contact: oktay@e.email
+###############################################################################################
+
 set -e
 
 TEMP_DIR="$(mktemp -d)"
