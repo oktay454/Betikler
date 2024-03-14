@@ -1,0 +1,74 @@
+SMS_SEND="true"
+SMS_URI="https://smsoperator.com/"
+SMS_USER="KullaniciAdim"
+SMS_PASS="Par0l4m"
+SMS_ORIGINATOR="Kurumum"
+
+EMAIL_SEND="true"
+EMAIL_SENDER_NAME="OTP"
+EMAIL_SENDER_ACCOUNT="otphesabi@kurumum.com"
+EMAIL_SENDER_ADDRESS="otp@kurumum.com"
+EMAIL_SENDER_PASS="P4r0lam"
+EMAIL_SERVER="eposta.kurumum.com"
+
+EMAIL_SUBJECT="OTP"
+EMAIL_TEMPLATE_HTML="$(cat << \EOF
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OTP</title>
+    <style>
+* {
+	padding: 0;
+	margin: 0;
+	box-sizing: border-box;
+}
+body {
+	font-size: 16px;
+	background-color: #e2efff;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+    font-family: sans-serif;
+}
+.item {
+	background-color: rgba(255, 255, 255, 0.5);
+	width: calc(100% - calc(4.8rem * 2));
+	max-width: 500px;
+    margin-top: 30px;
+	padding: 2.8rem;
+	margin-bottom: 2.2rem;
+	display: flex;
+	flex-direction: column;
+	border-radius: 1.7rem;
+	box-shadow: 0 1.5rem 3rem rgba(0, 0, 0, 0.2);
+	transform: translateY(-1rem);
+	backdrop-filter: blur(1.5rem);
+}
+.item figure {
+	width: 100%;
+	margin-bottom: 1.5rem;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	overflow: hidden;
+	border-radius: 1.5rem;
+}
+.item figure img {
+	height: 93px;
+	display: block;
+}
+    </style>
+</head>
+<body>
+    <div class="item">
+        <h2 style="background: #00466a;margin: 0 auto;width: max-content;padding: 0 10px;color: #fff;border-radius: 4px;">_____OTP_____</h2>
+        <p style="margin:0 auto;margin-top: 20px;">OTP kodunun geçerlilik süresi 2 dakikadır.</p>
+    </div>
+
+</body>
+</html>
+EOF
+)"

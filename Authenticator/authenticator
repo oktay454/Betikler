@@ -4,6 +4,8 @@
 # Contact: oktay@e.email
 #
 
+# shellcheck source=/dev/null
+
 function Usage()
 {
 	cat << EOF
@@ -65,7 +67,7 @@ do
 			TESTING_USER="true"
 			;;
 		e)
-			ENVIRONMENT="${OPTARG}"
+			EXTERNAL_ENVIRONMENT="${OPTARG}"
 			;;
 		*)
 			Usage
@@ -82,15 +84,17 @@ done
 TEMP_DIR="/var/cache/otpcodes"
 DEFAULT_ENVIRONMENT="/etc/default/authenticator"
 
-if [ -f "${ENVIRONMENT}" ] && [ -r "${ENVIRONMENT}" ]
+if [ -f "${EXTERNAL_ENVIRONMENT}" ] && [ -r "${EXTERNAL_ENVIRONMENT}" ]
 then
-	source "${ENVIRONMENT}"
+	ENVIRONMENT="${EXTERNAL_ENVIRONMENT}"
 elif [ -f "${DEFAULT_ENVIRONMENT}" ] && [ -r "${DEFAULT_ENVIRONMENT}" ]
 then
-	source "${DEFAULT_ENVIRONMENT}"
+	ENVIRONMENT="${DEFAULT_ENVIRONMENT}"
 else
 	exit 1
 fi
+
+source "${ENVIRONMENT}"
 
 function Main()
 {
@@ -109,7 +113,8 @@ function Main()
 		echo "${OTP_DATE},${OTP_CODE}" > "${OTP_INFO}" || return 140
 		GetEmailAndPhoneInfo
 		SendSMS "${MOBILE_NUMBER}" "${OTP_CODE}"
-		SendEmail "${EMAIL}" "OTP" "${OTP_CODE}"
+		EMAIL_HTML="${EMAIL_TEMPLATE_HTML//_____OTP_____/${OTP_CODE}}"
+		SendEmail "${EMAIL}" "${EMAIL_SUBJECT}" "${EMAIL_HTML}"
 	else
 		return 100
 	fi
@@ -117,19 +122,20 @@ function Main()
 
 function OTPCheck()
 {
-	test ! -f "${OTP_INFO}" && exit 1
+	test ! -f "${OTP_INFO}" && return 1
 
 	SENDED_OTP_CODE="$(awk -F "," '{print $2}' "${OTP_INFO}")"
 	SENDED_OTP_TIMESTAMP="$(awk -F "," '{print $1}' "${OTP_INFO}")"
 
 	if ! [ "${SENDED_OTP_TIMESTAMP}" -ge "$((CURRENT_DATE-TIME_OUT_VALUE))" ]
 	then
-		exit 120
-	fi
-
-	if [ "${SENDED_OTP_CODE}" != "${OTP_CODE}" ]
+		return 120
+	elif [ "${SENDED_OTP_CODE}" != "${OTP_CODE}" ]
 	then
-		exit 130
+		return 130
+	else
+		rm -f "${OTP_INFO}"
+		return 0
 	fi
 }
 
@@ -177,14 +183,16 @@ function SendSMS()
 	NUMBER="${1}"
 	MESSAGE="${2}"
 	
+	[ "${SMS_SEND}" != "true" ] && return 0
+	
 	test -z "${NUMBER}" && return 2
-	XML_DATA="<SingleTextSMS>
-			<UserName>${SMSUSER}</UserName>
-			<PassWord>${SMSPASS}</PassWord>
+	RAW_DATA="<SingleTextSMS>
+			<UserName>${SMS_USER}</UserName>
+			<PassWord>${SMS_PASS}</PassWord>
 			<Action>0</Action>
 			<Mesgbody>${MESSAGE}</Mesgbody>
 			<Numbers>${NUMBER}</Numbers>
-			<Originator>${SMSORIGINATOR}</Originator>
+			<Originator>${SMS_ORIGINATOR}</Originator>
 			<SDate></SDate>
 		</SingleTextSMS>"
 
@@ -192,7 +200,7 @@ function SendSMS()
 		--location \
 		--request POST "${SMS_URI}" \
 		--header 'Content-Type: text/xml; charset=utf-8' \
-		--data-raw "${XML_DATA}" > /dev/null 2>&1 || return 110
+		--data-raw "${RAW_DATA}" > /dev/null 2>&1 || return 110
 }
 
 function SendEmail()
@@ -201,10 +209,13 @@ function SendEmail()
 	SUBJECT="${2}"
 	MESSAGE="${3}"
 
+	[ "${EMAIL_SEND}" != "true" ] && return 0
+
 	test -z "${EMAIL}" && return 2 
-	
-	mutt -e "my_hdr From: ${SENDER_EMAIL_ADDRESS,,} <${SENDER_EMAIL_ADDRESS,,}>; \
-		set smtp_url=smtp://${SENDER_EMAIL_ADDRESS}:${SENDER_EMAIL_PASS}@${EMAIL_SERVER}" \
+
+	mutt -e "my_hdr From: ${EMAIL_SENDER_NAME} <${EMAIL_SENDER_ADDRESS,,}>; \
+		set smtp_url=smtp://${EMAIL_SENDER_ACCOUNT}:${EMAIL_SENDER_PASS}@${EMAIL_SERVER}; \
+		set content_type=text/html" \
 		"${EMAIL}" \
 		-s "${SUBJECT}" <<< "${MESSAGE}" > /dev/null 2>&1 || return 110
 }

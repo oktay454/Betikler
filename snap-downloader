@@ -1,0 +1,32 @@
+#!/bin/bash
+
+SNAP_NAME="${1}"
+test -z "${SNAP_NAME}" && exit 1
+
+ARCH="${2}"
+test -z "${ARCH}" && ARCH='amd64'
+
+SNAP_API_URI="http://api.snapcraft.io/v2/snaps/info/${SNAP_NAME}"
+
+# -L seçeneği ile yönlendirmeleri takip et
+RESPONSE_JSON="$(curl -s -L -H "Accept: application/json" -H "Snap-Device-Series: 16" "${SNAP_API_URI}")"
+
+# JSON verisini denetle
+if jq -e . > /dev/null 2>&1 <<< "${RESPONSE_JSON}"
+then
+	DOWNLOAD_URL=$(jq -r '.["channel-map"][] | select(.channel.architecture == "'"${ARCH}"'" and .channel.risk == "stable") | .download.url' <<< "${RESPONSE_JSON}")
+	if [ -n "${DOWNLOAD_URL}" ]
+	then
+		echo "Download URL: ${DOWNLOAD_URL}"
+		if curl --progress-bar -o "${SNAP_NAME}_${ARCH}.snap" -L "${DOWNLOAD_URL}"
+		then
+			echo "Download succeeded"
+		else
+			echo "Download failed"
+		fi
+	else
+		echo "No ${ARCH} snap available" >&2
+	fi
+else
+	echo "Unknown error occurred. Could not retrieve snap information." >&2
+fi
