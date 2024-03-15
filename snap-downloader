@@ -24,13 +24,13 @@ then
 				DOWNLOAD_URL="${DOWNLOADABLE_VERSION}"
 				break
 			done
-			echo "Download URL: ${DOWNLOAD_URL}"
-			if curl --progress-bar -o "${SNAP_NAME}_${ARCH}.snap" -L "${DOWNLOAD_URL}"
-			then
-				echo "Download succeeded"
-			else
-				echo "Download failed"
-			fi
+		fi
+		echo "Download URL: ${DOWNLOAD_URL}"
+		if curl --progress-bar -o "${SNAP_NAME}_${ARCH}.snap" -L "${DOWNLOAD_URL}"
+		then
+			echo "Download succeeded"
+		else
+			echo "Download failed"
 		fi
 	else
 		echo "No ${ARCH} snap available" >&2
