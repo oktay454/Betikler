@@ -14,7 +14,7 @@ RESPONSE_JSON="$(curl -s -L -H "Accept: application/json" -H "Snap-Device-Series
 # JSON verisini denetle
 if jq -e . > /dev/null 2>&1 <<< "${RESPONSE_JSON}"
 then
-	DOWNLOAD_URL=$(jq -r '.["channel-map"][] | select(.channel.architecture == "'"${ARCH}"'" and .channel.risk == "stable") | .download.url' <<< "${RESPONSE_JSON}")
+	DOWNLOAD_URL="$(jq -r '.["channel-map"][] | select(.channel.architecture == "'"${ARCH}"'" and .channel.risk == "stable") | .download.url' <<< "${RESPONSE_JSON}")"
 	if [ -n "${DOWNLOAD_URL}" ]
 	then
 		echo "Download URL: ${DOWNLOAD_URL}"
