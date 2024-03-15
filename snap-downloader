@@ -17,12 +17,20 @@ then
 	DOWNLOAD_URL="$(jq -r '.["channel-map"][] | select(.channel.architecture == "'"${ARCH}"'" and .channel.risk == "stable") | .download.url' <<< "${RESPONSE_JSON}")"
 	if [ -n "${DOWNLOAD_URL}" ]
 	then
-		echo "Download URL: ${DOWNLOAD_URL}"
-		if curl --progress-bar -o "${SNAP_NAME}_${ARCH}.snap" -L "${DOWNLOAD_URL}"
+		if [ "$(wc -l <<< "${DOWNLOAD_URL}")" -gt 1 ]
 		then
-			echo "Download succeeded"
-		else
-			echo "Download failed"
+			select DOWNLOADABLE_VERSION in ${DOWNLOAD_URL}
+			do
+				DOWNLOAD_URL="${DOWNLOADABLE_VERSION}"
+				break
+			done
+			echo "Download URL: ${DOWNLOAD_URL}"
+			if curl --progress-bar -o "${SNAP_NAME}_${ARCH}.snap" -L "${DOWNLOAD_URL}"
+			then
+				echo "Download succeeded"
+			else
+				echo "Download failed"
+			fi
 		fi
 	else
 		echo "No ${ARCH} snap available" >&2
