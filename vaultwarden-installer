@@ -36,7 +36,7 @@ SERVICE_FILE="/etc/systemd/system/vaultwarden.service"
 ENVIRONMENT_FILE="${BASE_DIR}/environment"
 
 groupadd -r "${GROUP_NAME}" || true
-useradd -d "${BASE_DIR}" -m -r -g "${GROUP_NAME}" "${USER_NAME}" || true
+useradd -d "${BASE_DIR}" -m -r -g "${GROUP_NAME}" "${USER_NAME}" -s /usr/sbin/nologin || true
 
 wget https://raw.githubusercontent.com/jjlin/docker-image-extract/main/docker-image-extract -O "${TEMP_DIR}/docker-image-extract" 
 chmod +x "${TEMP_DIR}/docker-image-extract"
