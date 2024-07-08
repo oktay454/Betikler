@@ -1,0 +1,452 @@
+#!/bin/bash
+# shellcheck source=/dev/null
+set -e
+umask 0022
+
+##########################################################################################
+# Temel Değişkenler
+##########################################################################################
+# shellcheck disable=SC2034
+DEBIAN_FRONTEND="noninteractive"
+LXC_DIR="/var/lib/lxc"
+PRODUCT_NAME="template-deb12"
+LXC_IP="10.0.3.200"
+
+PUBLISH_CERT="/usr/local/sbin/publish-cert"
+SET_NFT_RULES="/usr/local/sbin/set-nft-rules"
+NFT_COMMON="/etc/default/nft-common"
+NFT_RULES="/etc/default/nft-rules"
+
+##########################################################################################
+# Sistemin dili yapılandırıyor
+##########################################################################################
+cat > "/etc/locale.gen" << LOCALE
+en_US.UTF-8 UTF-8
+tr_TR.UTF-8 UTF-8
+LOCALE
+locale-gen
+update-locale "LANG=en_US.UTF-8"
+
+##########################################################################################
+# Temel sistem araçları ve gerekli paketlerin kurulumu
+##########################################################################################
+apt purge -y --auto-remove apt-listchanges
+apt update
+apt install -y \
+	bash-completion openssh-server fzf autojump \
+	file tree htop vim tmux wget curl coreutils \
+	moreutils apt-transport-https gnupg certbot \
+	debconf-utils bind9-dnsutils lxc nftables gawk
+
+##########################################################################################
+# Kullanıma dair düzenlemeler
+##########################################################################################
+cat > "/etc/vim/vimrc.local" << \VIM_CONFIG
+source $VIMRUNTIME/defaults.vim
+let skip_defaults_vim = 1
+set noswapfile
+set ignorecase
+set smartcase
+if has("mouse")
+  set mouse=r
+endif
+VIM_CONFIG
+
+cat > "/root/.bashrc" << \BASHRC
+# Color Bash Prompt
+export PS1="\[\033[38;5;11m\]\u\[\033[38;5;9m\]@\h:\[\033[38;5;118m\][\$?]\[\033[38;5;51m\][\w]\[\033[38;5;6m\][\d - \t]\n\[\033[38;5;10m\][\\$\[\033[38;5;10m\]]\[\033[38;5;202m\]>\[\033[38;5;15m\]"
+
+# Alias definitions.
+# You may want to put all your additions into a separate file like
+# ~/.bash_aliases, instead of adding them here directly.
+# See /usr/share/doc/bash-doc/examples in the bash-doc package.
+
+if [ -f ~/.bash_aliases ]; then
+    . ~/.bash_aliases
+fi
+
+if [ -f ~/.bash_functions ]; then
+    . ~/.bash_functions
+fi
+
+# If FZF is installed
+if [ -f /usr/share/doc/fzf/examples/key-bindings.bash ]; then
+    . /usr/share/doc/fzf/examples/key-bindings.bash
+fi
+
+# colored GCC warnings and errors
+export GCC_COLORS='error=01;31:warning=01;35:note=01;36:caret=01;32:locus=01:quote=01'
+
+# For Bash completion to work
+if ! shopt -oq posix; then
+  if [ -f /usr/share/bash-completion/bash_completion ]; then
+    . /usr/share/bash-completion/bash_completion
+  elif [ -f /etc/bash_completion ]; then
+    . /etc/bash_completion
+  fi
+fi
+
+# append to the history file, don't overwrite it
+shopt -s histappend
+
+# don't put duplicate lines or lines starting with space in the history.
+# See bash(1) for more options
+HISTCONTROL=ignoreboth
+
+# for setting history length see HISTSIZE and HISTFILESIZE in bash(1)
+export HISTSIZE=-1
+export HISTFILESIZE=-1
+
+export PROMPT_COMMAND="history -a;$PROMPT_COMMAND"
+export LS_OPTIONS='--color=auto'
+eval "`dircolors`"
+
+# Aliases
+alias ls='ls $LS_OPTIONS'
+alias ll='ls $LS_OPTIONS -lh'
+alias l='ls $LS_OPTIONS -lAh'
+alias c='clear'
+alias r='reset'
+alias ..='cd ..'
+alias ...='cd ../..'
+alias ....='cd ../../..'
+alias .....='cd ../../../..'
+alias ......='cd ../../../../..'
+BASHRC
+
+# MOTD özellikleri
+cat > "/etc/update-motd.d/20-lxc-list" << \MOTD_LXC_LIST
+#!/bin/bash
+if command -v lxc-ls > /dev/null 2>&1
+then
+	echo "#######################################################################"
+	lxc-ls -f
+	echo "#######################################################################"
+	echo
+fi
+MOTD_LXC_LIST
+chmod +x "/etc/update-motd.d/20-lxc-list"
+
+cat > "/etc/update-motd.d/30-tmux-list" << \MOTD_TMUX_LIST
+#!/bin/bash
+if command -v tmux > /dev/null 2>&1
+then
+	echo "#######################################################################"
+	tmux ls 2>/dev/null || echo "There is no TMUX session open."
+	echo "#######################################################################"
+	echo
+fi
+MOTD_TMUX_LIST
+chmod +x "/etc/update-motd.d/30-tmux-list"
+
+chattr -i "/etc/motd"
+rm "/etc/motd"
+touch "/etc/motd"
+chattr +i "/etc/motd"
+
+##########################################################################################
+# SSH yapılandırması
+##########################################################################################
+install -dm0700 ~/.ssh
+wget "https://www.beyaz.net/public/arge-linux.pub" -O ~/.ssh/authorized_keys
+cat > "/etc/ssh/sshd_config.d/99-common.conf" << SSH_CONFIG
+PermitRootLogin prohibit-password
+PubkeyAuthentication yes
+PasswordAuthentication no
+PermitEmptyPasswords no
+SSH_CONFIG
+systemctl restart ssh.service
+
+##########################################################################################
+# Certbot için ek araçlar
+##########################################################################################
+# Certbot'un çalışması akabinde sertifika ve anahtarlarını dizine kopyamalak için betik
+cat > "${PUBLISH_CERT}" << \PUBLISH_CERT
+#!/bin/bash
+
+LE_LIVE_DIR="/etc/letsencrypt/live"
+CERTS_DIR="/usr/local/share/certificates"
+DIRS="$(find ${LE_LIVE_DIR} -mindepth 1 -maxdepth 1 -type d)"
+FQDNS="$(awk -F "/" '{ print $NF }' <<< "${DIRS}")"
+
+for FQDN in ${FQDNS}
+do
+	FULLCHAIN="$(realpath "${LE_LIVE_DIR}/${FQDN}/fullchain.pem")"
+	PRIVKEY="$(realpath "${LE_LIVE_DIR}/${FQDN}/privkey.pem")"
+	if ! [ -f "${FULLCHAIN}" ] || ! [ -f "${PRIVKEY}" ]
+	then
+		continue
+	fi
+	install -Dm0444 "${FULLCHAIN}" "${CERTS_DIR}/${FQDN}/fullchain.pem"
+	install -Dm0444 "${PRIVKEY}" "${CERTS_DIR}/${FQDN}/privkey.pem"
+done
+PUBLISH_CERT
+chmod +x "${PUBLISH_CERT}"
+ln -sf "${PUBLISH_CERT}" "/etc/letsencrypt/renewal-hooks/post/publist-cert"
+
+# Certbot hizmetine tetikleyici ekleme
+mkdir -p "/etc/systemd/system/certbot.service.d"
+cat > "/etc/systemd/system/certbot.service.d/50-pusbish-cert.conf" << SERVICE
+[Service]
+ExecStartPost=${PUBLISH_CERT}
+SERVICE
+systemctl daemon-reload
+
+##########################################################################################
+# LXC ağ ortamının yapılandırılması
+##########################################################################################
+cat > "/etc/default/lxc-net" << \LXC_NET
+USE_LXC_BRIDGE="true"
+LXC_BRIDGE_MAC="00:16:3e:00:00:00"
+LXC_ADDR="10.0.3.1"
+LXC_NETMASK="255.255.255.0"
+LXC_NETWORK="10.0.3.0/24"
+LXC_DHCP_RANGE="10.0.3.200,10.0.3.254"
+LXC_DHCP_MAX="253"
+LXC_NET
+
+##########################################################################################
+# nftables yapılandırması
+##########################################################################################
+# nft komutları /etc/default/nft-{common,rules} dosyalarına eklenir.
+# Daha kolay yönetebilirlik sağlamak için böyle bir yöntem tercih edildi.
+cat > "${SET_NFT_RULES}" << SET_NFT_RULES
+#!/bin/bash
+
+test -f "${NFT_COMMON}" && source "${NFT_COMMON}" || true
+test -f "${NFT_RULES}" && source "${NFT_RULES}" || true
+SET_NFT_RULES
+chmod +x "${SET_NFT_RULES}"
+
+mkdir -p "/etc/systemd/system/nftables.service.d"
+cat > "/etc/systemd/system/nftables.service.d/50-set-nftables.conf" << SERVICE
+[Service]
+ExecStartPost=${SET_NFT_RULES}
+SERVICE
+systemctl daemon-reload
+
+# nftables.conf dosyasının içeriği temizlenip sabitlenir.
+chattr -i "/etc/nftables.conf"
+rm "/etc/nftables.conf"
+touch "/etc/nftables.conf"
+chattr +i "/etc/nftables.conf"
+
+# Genel nftables yapılandırması -varsa tarih sonekli olarak yedeklenip yeniden- oluşturulur
+test -f "${NFT_COMMON}" && mv "${NFT_COMMON}"{,"-$(date "+%F_%H-%M-%S")-${PRODUCT_NAME}"}
+cat > "${NFT_COMMON}" << \NFT_COMMON
+##########################################################################################
+# Genel nftables yapılandırması
+##########################################################################################
+nft delete table inet filter 2>/dev/null || true
+nft delete table ip nat 2>/dev/null || true
+
+# table: filter
+# chains: input, forward, output
+# rules: drop from the public interface to the private internal network
+nft add table inet filter
+nft add chain inet filter input { type filter hook input priority 0 \; }
+nft add chain inet filter forward { type filter hook forward priority 0 \; }
+nft add chain inet filter output { type filter hook output priority 0 \; }
+[[ -z "$(nft list chain inet filter output | ack 'ip daddr 10.0.3.0/24 drop')" ]] && \
+nft add rule inet filter output iif eth0 ip daddr 10.0.3.0/24 drop
+
+# table: nat
+# chains: prerouting, postrouting, output, input
+# rules: masquerade
+nft add table ip nat
+nft add chain ip nat prerouting { type nat hook prerouting priority 0 \; }
+nft add chain ip nat postrouting { type nat hook postrouting priority 100 \; }
+nft add chain ip nat output { type nat hook output priority 0 \; }
+nft add chain ip nat input { type nat hook input priority 0 \; }
+[[ -z "$(nft list chain ip nat postrouting | ack 'ip saddr 10.0.3.0/24 masquerade')" ]] && \
+nft add rule ip nat postrouting ip saddr 10.0.3.0/24 masquerade
+
+# table: nat
+# chains: prerouting, output
+# maps: tcp2ip, tcp2port
+# rules: tcp dnat
+nft add map ip nat tcp2ip { type inet_service : ipv4_addr \; }
+nft add map ip nat tcp2port { type inet_service : inet_service \; }
+[[ -z "$(nft list chain ip nat prerouting | ack 'tcp dport map @tcp2ip:tcp dport map @tcp2port')" ]] && \
+nft add rule ip nat prerouting iif eth0 dnat tcp dport map @tcp2ip:tcp dport map @tcp2port
+[[ -z "$(nft list chain ip nat output | ack 'tcp dport map @tcp2ip:tcp dport map @tcp2port')" ]] && \
+nft add rule ip nat output oif lo dnat tcp dport map @tcp2ip:tcp dport map @tcp2port
+
+# table: nat
+# chains: prerouting, output
+# maps: udp2ip, udp2port
+# rules: udp dnat
+nft add map ip nat udp2ip { type inet_service : ipv4_addr \; }
+nft add map ip nat udp2port { type inet_service : inet_service \; }
+[[ -z "$(nft list chain ip nat prerouting | ack 'udp dport map @udp2ip:udp dport map @udp2port')" ]] && \
+nft add rule ip nat prerouting iif eth0 dnat udp dport map @udp2ip:udp dport map @udp2port
+[[ -z "$(nft list chain ip nat output | ack 'udp dport map @udp2ip:udp dport map @udp2port')" ]] && \
+nft add rule ip nat output oif lo dnat udp dport map @udp2ip:udp dport map @udp2port
+NFT_COMMON
+
+# Ağ yapılandırması sonrası hizmetlerin yeniden başlatılması
+systemctl enable nftables.service lxc-net.service
+systemctl restart nftables.service
+# lxc-net'de nft komutlarını kullanıyor. Bu kısım detaylı incelenmedi. Tedbiren 1 saniyelik aralık verildi.
+sleep 1
+systemctl restart lxc-net.service
+
+##########################################################################################
+# Kapsayıcının kurulum aşamaları
+##########################################################################################
+# Eğer mevcut bir kapsayıcı varsa kaldırılır.
+if lxc-info -n "${PRODUCT_NAME,,}" > /dev/null 2>&1
+then
+	lxc-stop -n "${PRODUCT_NAME,,}" || true
+	until lxc-info -s -n "${PRODUCT_NAME,,}" | grep -q STOPPED
+	do
+		echo "Kapsayıcının kapanması bekleniyor: ${PRODUCT_NAME,,}"
+		sleep 1
+	done
+	lxc-destroy -n "${PRODUCT_NAME,,}"
+fi
+
+# Kapsayıcı(container) oluşturma
+lxc-create "${PRODUCT_NAME,,}" -t debian -- -r bookworm
+#lxc-create "${PRODUCT_NAME,,}" -t debian -- -r bookworm --flush-cache
+
+# Kapsayıcı ağ yapılandırması
+LXC_IFACE="$(grep "auto" "${LXC_DIR}/${PRODUCT_NAME,,}/rootfs/etc/network/interfaces" | awk '!/lo/ { print $2 }')"
+cat > "${LXC_DIR}/${PRODUCT_NAME,,}/rootfs/etc/network/interfaces" << NETWORK_CONFIG
+auto lo
+iface lo inet loopback
+
+auto ${LXC_IFACE}
+iface ${LXC_IFACE} inet static
+	address ${LXC_IP}/24
+	gateway 10.0.3.1
+	dns-nameservers $(awk '/^nameserver/ { print $2 }' "/etc/resolv.conf" | tr "\n" " ")
+NETWORK_CONFIG
+
+# Ana makine üzerindeki sertifikanın, kapsayıcıda da aynı dizinden erişlebilmesi için dizin bağlandı.
+mkdir -p "/usr/local/share/certificates"
+mkdir -p "${LXC_DIR}/${PRODUCT_NAME,,}/rootfs/usr/local/share/certificates"
+echo "lxc.mount.entry = /usr/local/share/certificates usr/local/share/certificates none bind 0 0" >> "${LXC_DIR}/${PRODUCT_NAME,,}/config"
+
+lxc-start -n "${PRODUCT_NAME,,}"
+until lxc-info -s -n "${PRODUCT_NAME,,}" | grep -q RUNNING
+do
+	echo "Kapsayıcının açılması bekleniyor: ${PRODUCT_NAME,,}"
+	sleep 1
+done
+
+# Kapsayıcı içerisindeki yapılacaklar
+lxc-attach -n "${PRODUCT_NAME,,}" -- << \RUN_IN_CONTAINER
+# Sistemin dili yapılandırıyor
+cat > "/etc/locale.gen" << LOCALE
+en_US.UTF-8 UTF-8
+tr_TR.UTF-8 UTF-8
+LOCALE
+locale-gen
+update-locale "LANG=en_US.UTF-8"
+
+# Depoları yeniden oluşturuluyor
+cat > "/etc/apt/sources.list" << \SOURCES_LIST
+deb http://deb.debian.org/debian/ bookworm main contrib non-free non-free-firmware
+deb http://deb.debian.org/debian-security bookworm-security main contrib non-free non-free-firmware
+deb http://deb.debian.org/debian/ bookworm-updates main contrib non-free non-free-firmware
+SOURCES_LIST
+
+# Temel sistem araçları ve gerekli paketlerin kurulumu
+apt purge -y --auto-remove apt-listchanges
+apt update
+apt install -y \
+	bash-completion openssh-server fzf autojump \
+	file tree htop vim tmux wget curl coreutils \
+	moreutils apt-transport-https gnupg gawk \
+	debconf-utils bind9-dnsutils iputils-ping
+
+##########################################################################################
+# Kullanıma dair düzenlemeler
+##########################################################################################
+cat > "/etc/vim/vimrc.local" << \VIM_CONFIG
+source $VIMRUNTIME/defaults.vim
+let skip_defaults_vim = 1
+set noswapfile
+set ignorecase
+set smartcase
+if has("mouse")
+  set mouse=r
+endif
+VIM_CONFIG
+
+cat > "/root/.bashrc" << \BASHRC
+# Color Bash Prompt
+export PS1="\[\033[38;5;11m\]\u\[\033[38;5;9m\]@\h:\[\033[38;5;118m\][\$?]\[\033[38;5;51m\][\w]\[\033[38;5;6m\][\d - \t]\n\[\033[38;5;10m\][\\$\[\033[38;5;10m\]]\[\033[38;5;202m\]>\[\033[38;5;15m\]"
+
+# Alias definitions.
+# You may want to put all your additions into a separate file like
+# ~/.bash_aliases, instead of adding them here directly.
+# See /usr/share/doc/bash-doc/examples in the bash-doc package.
+
+if [ -f ~/.bash_aliases ]; then
+    . ~/.bash_aliases
+fi
+
+if [ -f ~/.bash_functions ]; then
+    . ~/.bash_functions
+fi
+
+# If FZF is installed
+if [ -f /usr/share/doc/fzf/examples/key-bindings.bash ]; then
+    . /usr/share/doc/fzf/examples/key-bindings.bash
+fi
+
+# colored GCC warnings and errors
+export GCC_COLORS='error=01;31:warning=01;35:note=01;36:caret=01;32:locus=01:quote=01'
+
+# For Bash completion to work
+if ! shopt -oq posix; then
+  if [ -f /usr/share/bash-completion/bash_completion ]; then
+    . /usr/share/bash-completion/bash_completion
+  elif [ -f /etc/bash_completion ]; then
+    . /etc/bash_completion
+  fi
+fi
+
+# append to the history file, don't overwrite it
+shopt -s histappend
+
+# don't put duplicate lines or lines starting with space in the history.
+# See bash(1) for more options
+HISTCONTROL=ignoreboth
+
+# for setting history length see HISTSIZE and HISTFILESIZE in bash(1)
+export HISTSIZE=-1
+export HISTFILESIZE=-1
+
+export PROMPT_COMMAND="history -a;$PROMPT_COMMAND"
+export LS_OPTIONS='--color=auto'
+eval "`dircolors`"
+
+# Aliases
+alias ls='ls $LS_OPTIONS'
+alias ll='ls $LS_OPTIONS -lh'
+alias l='ls $LS_OPTIONS -lAh'
+alias c='clear'
+alias r='reset'
+alias ..='cd ..'
+alias ...='cd ../..'
+alias ....='cd ../../..'
+alias .....='cd ../../../..'
+alias ......='cd ../../../../..'
+BASHRC
+
+##########################################################################################
+# SSH yapılandırması
+##########################################################################################
+install -dm0700 ~/.ssh
+wget "https://www.beyaz.net/public/arge-linux.pub" -O ~/.ssh/authorized_keys
+cat > "/etc/ssh/sshd_config.d/99-common.conf" << SSH_CONFIG
+PermitRootLogin prohibit-password
+PubkeyAuthentication yes
+PasswordAuthentication no
+PermitEmptyPasswords no
+SSH_CONFIG
+systemctl restart ssh.service
+RUN_IN_CONTAINER
