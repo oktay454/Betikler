@@ -28,8 +28,13 @@ locale-gen
 update-locale "LANG=en_US.UTF-8"
 
 ##########################################################################################
-# Temel sistem araçları ve gerekli paketlerin kurulumu
+# Depoları yeniden oluşturma, temel sistem araçları ve gerekli paketlerin kurulumu
 ##########################################################################################
+cat > "/etc/apt/sources.list" << \SOURCES_LIST
+deb http://deb.debian.org/debian/ bookworm main contrib non-free non-free-firmware
+deb http://deb.debian.org/debian-security bookworm-security main contrib non-free non-free-firmware
+deb http://deb.debian.org/debian/ bookworm-updates main contrib non-free non-free-firmware
+SOURCES_LIST
 apt purge -y --auto-remove apt-listchanges
 apt update
 apt install -y \
@@ -182,6 +187,7 @@ do
 done
 PUBLISH_CERT
 chmod +x "${PUBLISH_CERT}"
+install -d "/etc/letsencrypt/renewal-hooks/post/"
 ln -sf "${PUBLISH_CERT}" "/etc/letsencrypt/renewal-hooks/post/publist-cert"
 
 # Certbot hizmetine tetikleyici ekleme
@@ -212,6 +218,14 @@ LXC_NET
 # Daha kolay yönetebilirlik sağlamak için böyle bir yöntem tercih edildi.
 cat > "${SET_NFT_RULES}" << SET_NFT_RULES
 #!/bin/bash
+
+if [ ! -s "/etc/nftables.conf" ]
+then
+	chattr -i "/etc/nftables.conf"
+	rm "/etc/nftables.conf"
+	touch "/etc/nftables.conf"
+	chattr +i "/etc/nftables.conf"
+fi
 
 test -f "${NFT_COMMON}" && source "${NFT_COMMON}" || true
 test -f "${NFT_RULES}" && source "${NFT_RULES}" || true
