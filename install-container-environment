@@ -35,7 +35,7 @@ deb http://deb.debian.org/debian/ bookworm main contrib non-free non-free-firmwa
 deb http://deb.debian.org/debian-security bookworm-security main contrib non-free non-free-firmware
 deb http://deb.debian.org/debian/ bookworm-updates main contrib non-free non-free-firmware
 SOURCES_LIST
-apt purge -y --auto-remove apt-listchanges
+apt purge -y --auto-remove apt-listchanges ufw iptables
 apt update
 apt install -y \
 	bash-completion openssh-server fzf autojump \
