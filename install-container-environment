@@ -304,6 +304,7 @@ systemctl restart nftables.service
 # lxc-net'de nft komutlarını kullanıyor. Bu kısım detaylı incelenmedi. Tedbiren 1 saniyelik aralık verildi.
 sleep 1
 systemctl restart lxc-net.service
+sleep 1
 
 ##########################################################################################
 # Kapsayıcının kurulum aşamaları
