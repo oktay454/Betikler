@@ -261,8 +261,8 @@ nft add table inet filter
 nft add chain inet filter input { type filter hook input priority 0 \; }
 nft add chain inet filter forward { type filter hook forward priority 0 \; }
 nft add chain inet filter output { type filter hook output priority 0 \; }
-[[ -z "$(nft list chain inet filter output | ack 'ip daddr 10.0.3.0/24 drop')" ]] && \
-nft add rule inet filter output iif eth0 ip daddr 10.0.3.0/24 drop
+[[ -z "$(nft list chain inet filter output | grep 'ip daddr 10.0.3.0/24 drop')" ]] && \
+nft add rule inet filter output iif $(awk '$2 == "00000000" { print $1 }' /proc/net/route) ip daddr 10.0.3.0/24 drop
 
 # table: nat
 # chains: prerouting, postrouting, output, input
@@ -272,7 +272,7 @@ nft add chain ip nat prerouting { type nat hook prerouting priority 0 \; }
 nft add chain ip nat postrouting { type nat hook postrouting priority 100 \; }
 nft add chain ip nat output { type nat hook output priority 0 \; }
 nft add chain ip nat input { type nat hook input priority 0 \; }
-[[ -z "$(nft list chain ip nat postrouting | ack 'ip saddr 10.0.3.0/24 masquerade')" ]] && \
+[[ -z "$(nft list chain ip nat postrouting | grep 'ip saddr 10.0.3.0/24 masquerade')" ]] && \
 nft add rule ip nat postrouting ip saddr 10.0.3.0/24 masquerade
 
 # table: nat
@@ -281,9 +281,9 @@ nft add rule ip nat postrouting ip saddr 10.0.3.0/24 masquerade
 # rules: tcp dnat
 nft add map ip nat tcp2ip { type inet_service : ipv4_addr \; }
 nft add map ip nat tcp2port { type inet_service : inet_service \; }
-[[ -z "$(nft list chain ip nat prerouting | ack 'tcp dport map @tcp2ip:tcp dport map @tcp2port')" ]] && \
-nft add rule ip nat prerouting iif eth0 dnat tcp dport map @tcp2ip:tcp dport map @tcp2port
-[[ -z "$(nft list chain ip nat output | ack 'tcp dport map @tcp2ip:tcp dport map @tcp2port')" ]] && \
+[[ -z "$(nft list chain ip nat prerouting | grep 'tcp dport map @tcp2ip:tcp dport map @tcp2port')" ]] && \
+nft add rule ip nat prerouting iif $(awk '$2 == "00000000" { print $1 }' /proc/net/route) dnat tcp dport map @tcp2ip:tcp dport map @tcp2port
+[[ -z "$(nft list chain ip nat output | grep 'tcp dport map @tcp2ip:tcp dport map @tcp2port')" ]] && \
 nft add rule ip nat output oif lo dnat tcp dport map @tcp2ip:tcp dport map @tcp2port
 
 # table: nat
@@ -292,9 +292,9 @@ nft add rule ip nat output oif lo dnat tcp dport map @tcp2ip:tcp dport map @tcp2
 # rules: udp dnat
 nft add map ip nat udp2ip { type inet_service : ipv4_addr \; }
 nft add map ip nat udp2port { type inet_service : inet_service \; }
-[[ -z "$(nft list chain ip nat prerouting | ack 'udp dport map @udp2ip:udp dport map @udp2port')" ]] && \
-nft add rule ip nat prerouting iif eth0 dnat udp dport map @udp2ip:udp dport map @udp2port
-[[ -z "$(nft list chain ip nat output | ack 'udp dport map @udp2ip:udp dport map @udp2port')" ]] && \
+[[ -z "$(nft list chain ip nat prerouting | grep 'udp dport map @udp2ip:udp dport map @udp2port')" ]] && \
+nft add rule ip nat prerouting iif $(awk '$2 == "00000000" { print $1 }' /proc/net/route) dnat udp dport map @udp2ip:udp dport map @udp2port
+[[ -z "$(nft list chain ip nat output | grep 'udp dport map @udp2ip:udp dport map @udp2port')" ]] && \
 nft add rule ip nat output oif lo dnat udp dport map @udp2ip:udp dport map @udp2port
 NFT_COMMON
 
