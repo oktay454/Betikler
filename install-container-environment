@@ -219,7 +219,7 @@ LXC_NET
 cat > "${SET_NFT_RULES}" << SET_NFT_RULES
 #!/bin/bash
 
-if [ ! -s "/etc/nftables.conf" ]
+if [ -f "/etc/nftables.conf" ] && [ ! -s "/etc/nftables.conf" ]
 then
 	chattr -i "/etc/nftables.conf"
 	rm "/etc/nftables.conf"
@@ -235,7 +235,10 @@ chmod +x "${SET_NFT_RULES}"
 mkdir -p "/etc/systemd/system/nftables.service.d"
 cat > "/etc/systemd/system/nftables.service.d/50-set-nftables.conf" << SERVICE
 [Service]
-ExecStartPost=${SET_NFT_RULES}
+ExecStart=
+ExecStart=${SET_NFT_RULES}
+ExecReload=
+ExecReload=${SET_NFT_RULES}
 SERVICE
 systemctl daemon-reload
 
