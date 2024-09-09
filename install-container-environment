@@ -219,34 +219,17 @@ LXC_NET
 cat > "${SET_NFT_RULES}" << SET_NFT_RULES
 #!/bin/bash
 
-if [ -f "/etc/nftables.conf" ] && [ ! -s "/etc/nftables.conf" ]
-then
-	chattr -i "/etc/nftables.conf"
-	rm "/etc/nftables.conf"
-	touch "/etc/nftables.conf"
-	chattr +i "/etc/nftables.conf"
-fi
-
 test -f "${NFT_COMMON}" && source "${NFT_COMMON}" || true
 test -f "${NFT_RULES}" && source "${NFT_RULES}" || true
 SET_NFT_RULES
 chmod +x "${SET_NFT_RULES}"
 
-mkdir -p "/etc/systemd/system/nftables.service.d"
-cat > "/etc/systemd/system/nftables.service.d/50-set-nftables.conf" << SERVICE
+mkdir -p "/etc/systemd/system/lxc-net.service.d/"
+cat > "/etc/systemd/system/lxc-net.service.d/50-set-nft-rules.conf" << SERVICE
 [Service]
-ExecStart=
-ExecStart=${SET_NFT_RULES}
-ExecReload=
-ExecReload=${SET_NFT_RULES}
+ExecStartPost=${SET_NFT_RULES}
 SERVICE
 systemctl daemon-reload
-
-# nftables.conf dosyasının içeriği temizlenip sabitlenir.
-chattr -i "/etc/nftables.conf"
-rm "/etc/nftables.conf"
-touch "/etc/nftables.conf"
-chattr +i "/etc/nftables.conf"
 
 # Genel nftables yapılandırması -varsa tarih sonekli olarak yedeklenip yeniden- oluşturulur
 test -f "${NFT_COMMON}" && mv "${NFT_COMMON}"{,"-$(date "+%F_%H-%M-%S")-${PRODUCT_NAME}"}
@@ -302,12 +285,9 @@ nft add rule ip nat output oif lo dnat udp dport map @udp2ip:udp dport map @udp2
 NFT_COMMON
 
 # Ağ yapılandırması sonrası hizmetlerin yeniden başlatılması
-systemctl enable nftables.service lxc-net.service
-systemctl restart nftables.service
-# lxc-net'de nft komutlarını kullanıyor. Bu kısım detaylı incelenmedi. Tedbiren 1 saniyelik aralık verildi.
-sleep 1
+systemctl disable nftables.service
+systemctl enable lxc-net.service
 systemctl restart lxc-net.service
-sleep 1
 
 ##########################################################################################
 # Kapsayıcının kurulum aşamaları
