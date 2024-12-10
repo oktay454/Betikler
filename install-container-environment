@@ -57,6 +57,8 @@ if has("mouse")
 endif
 VIM_CONFIG
 
+chsh -s /bin/bash root
+
 cat > "/root/.bashrc" << \BASHRC
 # Color Bash Prompt
 export PS1="\[\033[38;5;11m\]\u\[\033[38;5;9m\]@\h:\[\033[38;5;118m\][\$?]\[\033[38;5;51m\][\w]\[\033[38;5;6m\][\d - \t]\n\[\033[38;5;10m\][\\$\[\033[38;5;10m\]]\[\033[38;5;202m\]>\[\033[38;5;15m\]"
@@ -372,6 +374,8 @@ if has("mouse")
   set mouse=r
 endif
 VIM_CONFIG
+
+chsh -s /bin/bash root
 
 cat > "/root/.bashrc" << \BASHRC
 # Color Bash Prompt
