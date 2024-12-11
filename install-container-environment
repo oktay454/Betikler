@@ -161,6 +161,8 @@ PermitRootLogin prohibit-password
 PubkeyAuthentication yes
 PasswordAuthentication no
 PermitEmptyPasswords no
+PrintMotd yes
+PrintLastLog no
 SSH_CONFIG
 systemctl restart ssh.service
 
@@ -449,6 +451,8 @@ PermitRootLogin prohibit-password
 PubkeyAuthentication yes
 PasswordAuthentication no
 PermitEmptyPasswords no
+PrintMotd yes
+PrintLastLog no
 SSH_CONFIG
 systemctl restart ssh.service
 RUN_IN_CONTAINER
