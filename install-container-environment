@@ -329,8 +329,7 @@ NETWORK_CONFIG
 
 # Ana makine üzerindeki sertifikanın, kapsayıcıda da aynı dizinden erişlebilmesi için dizin bağlandı.
 mkdir -p "/usr/local/share/certificates"
-mkdir -p "${LXC_DIR}/${PRODUCT_NAME,,}/rootfs/usr/local/share/certificates"
-echo "lxc.mount.entry = /usr/local/share/certificates usr/local/share/certificates none bind 0 0" >> "${LXC_DIR}/${PRODUCT_NAME,,}/config"
+echo "lxc.mount.entry = /usr/local/share/certificates usr/local/share/certificates none bind,create=dir 0 0" >> "${LXC_DIR}/${PRODUCT_NAME,,}/config"
 
 lxc-start -n "${PRODUCT_NAME,,}"
 until lxc-info -s -n "${PRODUCT_NAME,,}" | grep -q RUNNING
