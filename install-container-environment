@@ -456,4 +456,7 @@ PrintMotd yes
 PrintLastLog no
 SSH_CONFIG
 systemctl restart ssh.service
+
+# Bash geçmisini temizleme
+rm -f ~/.bash_history
 RUN_IN_CONTAINER
