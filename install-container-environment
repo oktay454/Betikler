@@ -46,7 +46,7 @@ apt purge -y --auto-remove apt-listchanges ufw iptables
 apt update
 apt install -y \
 	bash-completion openssh-server fzf autojump \
-	file tree htop vim tmux wget curl coreutils locale \
+	file tree htop vim tmux wget curl coreutils locales \
 	moreutils apt-transport-https gnupg certbot \
 	debconf-utils bind9-dnsutils lxc nftables gawk
 
@@ -374,7 +374,7 @@ apt purge -y --auto-remove apt-listchanges
 apt update
 apt install -y \
 	bash-completion openssh-server fzf autojump \
-	file tree htop vim tmux wget curl coreutils locale \
+	file tree htop vim tmux wget curl coreutils locales \
 	moreutils apt-transport-https gnupg gawk \
 	debconf-utils bind9-dnsutils iputils-ping
 
