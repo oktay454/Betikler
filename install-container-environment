@@ -240,6 +240,8 @@ LXC_NET
 cat > "${SET_NFT_RULES}" << SET_NFT_RULES
 #!/bin/bash
 
+sleep 3
+
 test -f "${NFT_COMMON}" && source "${NFT_COMMON}" || true
 test -f "${NFT_RULES}" && source "${NFT_RULES}" || true
 SET_NFT_RULES
@@ -247,6 +249,8 @@ chmod +x "${SET_NFT_RULES}"
 
 mkdir -p "/etc/systemd/system/lxc-net.service.d/"
 cat > "/etc/systemd/system/lxc-net.service.d/50-set-nft-rules.conf" << SERVICE
+[Unit]
+After=nftables.service
 [Service]
 ExecStartPost=${SET_NFT_RULES}
 SERVICE
@@ -308,7 +312,6 @@ nft add rule ip nat output oif lo dnat udp dport map @udp2ip:udp dport map @udp2
 NFT_COMMON
 
 # Ağ yapılandırması sonrası hizmetlerin yeniden başlatılması
-systemctl disable nftables.service
 systemctl enable lxc-net.service
 systemctl restart lxc-net.service
 
