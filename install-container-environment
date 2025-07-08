@@ -49,7 +49,7 @@ apt install -y \
 	file tree htop vim tmux wget curl coreutils locales \
 	moreutils apt-transport-https gnupg certbot \
 	debconf-utils bind9-dnsutils lxc nftables gawk \
-	unattended-upgrades needrestart
+	unattended-upgrades needrestart netcat-openbsd
 
 ##########################################################################################
 # Kullanıma dair düzenlemeler
@@ -232,6 +232,28 @@ LXC_DHCP_RANGE="10.0.3.200,10.0.3.254"
 LXC_DHCP_MAX="253"
 LXC_NET
 
+cat > "/etc/sysctl.d/40-network-optimization.conf" << \NETWORK_OPTIMIZATION
+```
+# TCP ve UDP tampon bellek
+net.core.rmem_max = 16777216
+net.core.wmem_max = 16777216
+net.ipv4.tcp_rmem= 10240 87380 16777216
+net.ipv4.tcp_wmem= 10240 87380 16777216
+net.ipv4.tcp_window_scaling = 1
+net.ipv4.tcp_timestamps = 1
+net.ipv4.tcp_sack = 1
+net.ipv4.tcp_no_metrics_save = 1
+net.ipv4.udp_mem = 90651 120871 16777216
+
+# Çekirdeğin işleyebileceği paket sayısı
+net.core.netdev_max_backlog=16384
+
+# ARP tablosu taşmasını önleme
+net.ipv4.neigh.default.gc_thresh1 = 1024
+net.ipv4.neigh.default.gc_thresh2 = 2048
+net.ipv4.neigh.default.gc_thresh3 = 4096
+NETWORK_OPTIMIZATION
+
 ##########################################################################################
 # nftables yapılandırması
 ##########################################################################################
@@ -390,7 +412,7 @@ apt install -y \
 	file tree htop vim tmux wget curl coreutils locales \
 	moreutils apt-transport-https gnupg gawk \
 	debconf-utils bind9-dnsutils iputils-ping \
-	unattended-upgrades needrestart
+	unattended-upgrades needrestart netcat-openbsd
 
 ##########################################################################################
 # Kullanıma dair düzenlemeler
@@ -493,6 +515,32 @@ cat >> "/etc/systemd/journald.conf" <<JOURNALD
 MaxRetentionSec=1week
 MaxFileSec=1week
 JOURNALD
+
+
+##########################################################################################
+# Ağ iyileştirmesi
+##########################################################################################
+cat > "/etc/sysctl.d/40-network-optimization.conf" << \NETWORK_OPTIMIZATION
+```
+# TCP ve UDP tampon bellek
+net.core.rmem_max = 16777216
+net.core.wmem_max = 16777216
+net.ipv4.tcp_rmem= 10240 87380 16777216
+net.ipv4.tcp_wmem= 10240 87380 16777216
+net.ipv4.tcp_window_scaling = 1
+net.ipv4.tcp_timestamps = 1
+net.ipv4.tcp_sack = 1
+net.ipv4.tcp_no_metrics_save = 1
+net.ipv4.udp_mem = 90651 120871 16777216
+
+# Çekirdeğin işleyebileceği paket sayısı
+net.core.netdev_max_backlog=16384
+
+# ARP tablosu taşmasını önleme
+net.ipv4.neigh.default.gc_thresh1 = 1024
+net.ipv4.neigh.default.gc_thresh2 = 2048
+net.ipv4.neigh.default.gc_thresh3 = 4096
+NETWORK_OPTIMIZATION
 
 # Bash geçmisini temizleme
 rm -f ~/.bash_history
