@@ -253,6 +253,7 @@ net.ipv4.neigh.default.gc_thresh1 = 1024
 net.ipv4.neigh.default.gc_thresh2 = 2048
 net.ipv4.neigh.default.gc_thresh3 = 4096
 NETWORK_OPTIMIZATION
+sysctl -p
 
 ##########################################################################################
 # nftables yapılandırması
@@ -541,6 +542,7 @@ net.ipv4.neigh.default.gc_thresh1 = 1024
 net.ipv4.neigh.default.gc_thresh2 = 2048
 net.ipv4.neigh.default.gc_thresh3 = 4096
 NETWORK_OPTIMIZATION
+sysctl -p
 
 # Bash geçmisini temizleme
 rm -f ~/.bash_history
