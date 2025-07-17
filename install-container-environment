@@ -209,7 +209,7 @@ done
 PUBLISH_CERT
 chmod +x "${PUBLISH_CERT}"
 install -d "/etc/letsencrypt/renewal-hooks/post/"
-ln -sf "${PUBLISH_CERT}" "/etc/letsencrypt/renewal-hooks/post/publist-cert"
+ln -sf "${PUBLISH_CERT}" "/etc/letsencrypt/renewal-hooks/post/publish-cert"
 
 # Certbot hizmetine tetikleyici ekleme
 mkdir -p "/etc/systemd/system/certbot.service.d"
