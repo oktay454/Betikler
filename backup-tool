@@ -1,0 +1,70 @@
+#!/bin/bash
+
+BACKUP_PATH="/var/backups/shuttle/backups"
+TEMP_PATH="$(mktemp -td backup.XXXXXXX)"
+trap 'rm -rf "${TEMP_PATH}"' EXIT
+
+function Main()
+{
+	[ -n "${1}" ] && CONTAINER="${1}"
+	if [ -n "${CONTAINER}" ]
+	then
+		TakeBackup "${CONTAINER}"
+	else
+		for CONTAINER in $(lxc-ls)
+		do
+			TakeBackup "${CONTAINER}"
+		done
+	fi
+}
+
+function EchoLog()
+{
+	RED='\e[31m'
+	GREEN='\e[32m'
+	NONCOLOR='\e[0m'
+
+	# shellcheck disable=SC2034
+	INFO="${GREEN}"
+	# shellcheck disable=SC2034
+	ERROR="${RED}"
+
+	COLOR="${1^^}"
+	STATUS="${1^^}"
+	MESSAGE="${2}"
+
+	if [ "${STATUS}" == "ERROR" ]
+	then
+		OUTPUT_STATUS="2"
+	else
+		OUTPUT_STATUS="1"
+	fi
+
+	echo -e "${!COLOR}$(date +%F_%H-%M-%S) -- [${STATUS}] ${MESSAGE}${NONCOLOR}" >&${OUTPUT_STATUS}
+}
+
+function TakeBackup()
+{
+	EchoLog "INFO" "Started ${CONTAINER} container copying to temp directory."
+	if lxc-copy -K -a -n "${CONTAINER}" -N "${CONTAINER}" -p "${TEMP_PATH}"
+	then
+		EchoLog "INFO" "Started ${CONTAINER} container archiving and backup."
+		if env -C "${TEMP_PATH}" -- tar --ignore-failed-read --numeric-owner -czif "${BACKUP_PATH}/${CONTAINER}-$(date +%F_%H-%M-%S).tar.gz" "${CONTAINER}" > /dev/null 2>&1
+		then
+			EchoLog "INFO" "Successful ${CONTAINER} container backup."
+		else
+			EchoLog "ERROR" "Failed ${CONTAINER} container backup."
+		fi
+
+		if rm -rf "${TEMP_PATH}/${CONTAINER:?}"
+		then
+			EchoLog "INFO" "Successful ${CONTAINER} container temp directory delete."
+		else
+			EchoLog "ERROR" "Failed ${CONTAINER} container temp directory delete."
+		fi
+	else
+		EchoLog "ERROR" "Failed ${CONTAINER} container copying to temp directory."
+	fi
+}
+
+Main "${@}"
