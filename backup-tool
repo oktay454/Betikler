@@ -9,12 +9,13 @@ function Main()
 	[ -n "${1}" ] && CONTAINER="${1}"
 	if [ -n "${CONTAINER}" ]
 	then
-		TakeBackup "${CONTAINER}"
+		TakeContainerBackup "${CONTAINER}"
 	else
 		for CONTAINER in $(lxc-ls)
 		do
-			TakeBackup "${CONTAINER}"
+			TakeContainerBackup "${CONTAINER}"
 		done
+		TakeNFTBackup
 	fi
 }
 
@@ -43,7 +44,7 @@ function EchoLog()
 	echo -e "${!COLOR}$(date +%F_%H-%M-%S) -- [${STATUS}] ${MESSAGE}${NONCOLOR}" >&${OUTPUT_STATUS}
 }
 
-function TakeBackup()
+function TakeContainerBackup()
 {
 	EchoLog "INFO" "Started ${CONTAINER} container copying to temp directory."
 	if lxc-copy -K -a -n "${CONTAINER}" -N "${CONTAINER}" -p "${TEMP_PATH}"
@@ -64,6 +65,17 @@ function TakeBackup()
 		fi
 	else
 		EchoLog "ERROR" "Failed ${CONTAINER} container copying to temp directory."
+	fi
+}
+
+function TakeNFTBackup()
+{
+	EchoLog "INFO" "Started NFT rules backup."
+	if cp -f "/etc/default/nft-rules" "${BACKUP_PATH}/nft-rules_$(date +%F_%H-%M-%S)"
+	then
+		EchoLog "INFO" "Successful NFT rules backup."
+	else
+		EchoLog "ERROR" "Failed NFT rules backup."
 	fi
 }
 
