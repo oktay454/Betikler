@@ -1,3 +1,7 @@
+LDAP_PROTOCOL="ldaps"
+LDAP_PORT="636"
+IGNORE_SSL_VERIFY="true"
+
 SMS_SEND="true"
 SMS_URI="https://smsoperator.com/"
 SMS_USER="KullaniciAdim"

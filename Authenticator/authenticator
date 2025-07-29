@@ -96,6 +96,26 @@ fi
 
 source "${ENVIRONMENT}"
 
+[ -z "${LDAP_PROTOCOL}" ] && LDAP_PROTOCOL="ldaps"
+if [ "${IGNORE_SSL_VERIFY}" == "true" ]
+then
+	LDAPTLS_REQCERT=never
+else
+	unset LDAPTLS_REQCERT
+fi
+
+if [ -z "${LDAP_PORT}" ]
+then
+	case "${LDAP_PROTOCOL,,}" in
+		ldaps)
+			LDAP_PORT="636"
+			;;
+		ldap)
+			LDAP_PORT="389"
+			;;
+	esac
+fi
+
 function Main()
 {
 	mkdir -p "${TEMP_DIR}/${REALM}" || return 140
@@ -146,7 +166,7 @@ function CreateOTPCode()
 
 function UserControl()
 {
-	ldapwhoami -D "${USER_NAME}@${REALM}" -w "${USER_PASS}" -H "ldap://${REALM}" > /dev/null 2>&1
+	ldapwhoami -x -D "${USER_NAME}@${REALM}" -w "${USER_PASS}" -H "${LDAP_PROTOCOL}://${REALM}:${LDAP_PORT}" > /dev/null 2>&1
 }
 
 function CreateBaseDN() {
@@ -168,7 +188,7 @@ function GetEmailAndPhoneInfo()
 	local LDAP_QUERY
 	LDAP_QUERY="$(ldapsearch \
 		-LLL \
-		-H "ldap://${REALM}" \
+		-H "${LDAP_PROTOCOL}://${REALM}:${LDAP_PORT}" \
 		-D "${USER_NAME}@${REALM}" \
 		-w "${USER_PASS}" \
 		-b "$(CreateBaseDN "${REALM}")" \
