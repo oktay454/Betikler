@@ -195,8 +195,8 @@ function GetEmailAndPhoneInfo()
 		-b "$(CreateBaseDN "${REALM}")" \
 		"(sAMAccountName=${USER_NAME})" mail mobile | \
 		grep -E 'mail|mobile')"
-		EMAIL="$(awk '/mail:/ { print $2 }' <<< "${LDAP_QUERY}")"
-		MOBILE_NUMBER="$(awk '/mobile:/ { print $2 }' <<< "${LDAP_QUERY}")"
+		EMAIL="$(awk -F': *' '/mail:/ { print $2 }' <<< "${LDAP_QUERY}")"
+		MOBILE_NUMBER="$(awk -F': *' '/mobile:/ { print $2 }' <<< "${LDAP_QUERY}")"
 }
 
 function SendSMS()
