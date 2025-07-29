@@ -71,7 +71,6 @@ body {
         <h2 style="background: #00466a;margin: 0 auto;width: max-content;padding: 0 10px;color: #fff;border-radius: 4px;">_____OTP_____</h2>
         <p style="margin:0 auto;margin-top: 20px;">OTP kodunun geçerlilik süresi 2 dakikadır.</p>
     </div>
-
 </body>
 </html>
 EOF
