@@ -338,6 +338,13 @@ NFT_COMMON
 systemctl enable lxc-net.service
 systemctl restart lxc-net.service
 
+
+##########################################################################################
+# Öntanımlı hâle getirilen kullanıcı tanımları
+##########################################################################################
+# Bu özellikle www-data gibi ortak bir ftp kullanıcısı olması için öntanımlı yapıldı.
+useradd -mr -u 221 -g 33 -s /sbin/nologin -d /srv/ftp -c "ftp" ftp
+
 ##########################################################################################
 # Kapsayıcının kurulum aşamaları
 ##########################################################################################
