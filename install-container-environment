@@ -551,6 +551,12 @@ net.ipv4.neigh.default.gc_thresh3 = 4096
 NETWORK_OPTIMIZATION
 sysctl -p
 
+##########################################################################################
+# Öntanımlı hâle getirilen kullanıcı tanımları
+##########################################################################################
+# Bu özellikle www-data gibi ortak bir ftp kullanıcısı olması için öntanımlı yapıldı.
+useradd -mr -u 221 -g 33 -s /sbin/nologin -d /srv/ftp -c "ftp" ftp
+
 # Bash geçmisini temizleme
 rm -f ~/.bash_history
 RUN_IN_CONTAINER
