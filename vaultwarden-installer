@@ -9,7 +9,7 @@
 # Debian 12'de test ettim.
 #
 # Kemal Oktay Aktoğan (oktay454) tarafından yazılmıştır.
-# İletişim: oktay@e.email
+# İletişim: iletisim@oktayaktogan.com.tr
 ###############################################################################################
 # English
 # =======
@@ -21,7 +21,7 @@
 # I tested on Debian 12.
 #
 # Writed by Kemal Oktay Aktoğan (aka oktay454)
-# Contact: oktay@e.email
+# Contact: iletisim@oktayaktogan.com.tr
 ###############################################################################################
 
 set -e
