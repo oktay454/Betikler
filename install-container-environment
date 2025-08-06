@@ -163,7 +163,7 @@ chattr +i "/etc/motd"
 # SSH yapılandırması
 ##########################################################################################
 install -dm0700 ~/.ssh
-wget "https://www.beyaz.net/public/arge-linux.pub" -O ~/.ssh/authorized_keys
+wget "https://oktayaktogan.com.tr/ssh-keys.pub" -O ~/.ssh/authorized_keys
 cat > "/etc/ssh/sshd_config.d/99-common.conf" << SSH_CONFIG
 PermitRootLogin prohibit-password
 PubkeyAuthentication yes
@@ -504,7 +504,7 @@ BASHRC
 # SSH yapılandırması
 ##########################################################################################
 install -dm0700 ~/.ssh
-wget "https://www.beyaz.net/public/arge-linux.pub" -O ~/.ssh/authorized_keys
+wget "https://oktayaktogan.com.tr/ssh-keys.pub" -O ~/.ssh/authorized_keys
 cat > "/etc/ssh/sshd_config.d/99-common.conf" << SSH_CONFIG
 PermitRootLogin prohibit-password
 PubkeyAuthentication yes
