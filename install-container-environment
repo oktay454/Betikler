@@ -51,6 +51,20 @@ apt install -y \
 	debconf-utils bind9-dnsutils lxc nftables gawk \
 	unattended-upgrades needrestart netcat-openbsd
 
+cat > "/etc/apt/apt.conf.d/20keepconfig.conf" <<\APT_KEEP_CONFIG
+Dpkg::Options {
+	"--force-confdef";
+	"--force-confold";
+}
+APT_KEEP_CONFIG
+
+##########################################################################################
+# NeedRestart için otomatik yeniden başlatma
+##########################################################################################
+cat > "/etc/needrestart/conf.d/90-automatic-restart.conf" <<\NEEDRESTART_CONFIG
+$nrconf{restart} = 'a';
+NEEDRESTART_CONFIG
+
 ##########################################################################################
 # Kullanıma dair düzenlemeler
 ##########################################################################################
@@ -361,8 +375,7 @@ then
 fi
 
 # Kapsayıcı(container) oluşturma
-lxc-create "${PRODUCT_NAME,,}" -t debian -- -r bookworm
-#lxc-create "${PRODUCT_NAME,,}" -t debian -- -r bookworm --flush-cache
+lxc-create "${PRODUCT_NAME,,}" -t debian -- -r bookworm --flush-cache
 
 # Kapsayıcı ağ yapılandırması
 LXC_IFACE="$(grep "auto" "${LXC_DIR}/${PRODUCT_NAME,,}/rootfs/etc/network/interfaces" | awk '!/lo/ { print $2 }')"
@@ -421,6 +434,20 @@ apt install -y \
 	moreutils apt-transport-https gnupg gawk \
 	debconf-utils bind9-dnsutils iputils-ping \
 	unattended-upgrades needrestart netcat-openbsd
+
+cat > "/etc/apt/apt.conf.d/20keepconfig.conf" <<\APT_KEEP_CONFIG
+Dpkg::Options {
+	"--force-confdef";
+	"--force-confold";
+}
+APT_KEEP_CONFIG
+
+##########################################################################################
+# NeedRestart için otomatik yeniden başlatma
+##########################################################################################
+cat > "/etc/needrestart/conf.d/90-automatic-restart.conf" <<\NEEDRESTART_CONFIG
+$nrconf{restart} = 'a';
+NEEDRESTART_CONFIG
 
 ##########################################################################################
 # Kullanıma dair düzenlemeler
