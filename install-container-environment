@@ -48,7 +48,7 @@ apt install -y \
 	bash-completion openssh-server fzf autojump \
 	file tree htop vim tmux wget curl coreutils locales \
 	moreutils apt-transport-https gnupg certbot \
-	debconf-utils bind9-dnsutils lxc nftables gawk \
+	debconf-utils bind9-dnsutils lxc lxc-templates nftables gawk \
 	unattended-upgrades needrestart netcat-openbsd
 
 cat > "/etc/apt/apt.conf.d/20keepconfig.conf" <<\APT_KEEP_CONFIG
