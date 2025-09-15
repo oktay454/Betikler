@@ -581,15 +581,6 @@ net.ipv4.tcp_window_scaling = 1
 net.ipv4.tcp_timestamps = 1
 net.ipv4.tcp_sack = 1
 net.ipv4.tcp_no_metrics_save = 1
-net.ipv4.udp_mem = 90651 120871 16777216
-
-# Çekirdeğin işleyebileceği paket sayısı
-net.core.netdev_max_backlog=16384
-
-# ARP tablosu taşmasını önleme
-net.ipv4.neigh.default.gc_thresh1 = 1024
-net.ipv4.neigh.default.gc_thresh2 = 2048
-net.ipv4.neigh.default.gc_thresh3 = 4096
 NETWORK_OPTIMIZATION
 sysctl -p "/etc/sysctl.d/40-network-optimization.conf"
 
