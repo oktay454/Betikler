@@ -356,7 +356,7 @@ systemctl restart lxc-net.service
 # Öntanımlı hâle getirilen kullanıcı tanımları
 ##########################################################################################
 # Bu özellikle www-data gibi ortak bir ftp kullanıcısı olması için öntanımlı yapıldı.
-useradd -mr -u 221 -g 33 -s /sbin/nologin -d /srv/ftp -c "ftp" ftp
+useradd -mr -u 221 -g 33 -s /sbin/nologin -d /srv/ftp -c "ftp" ftp || true
 
 ##########################################################################################
 # Kapsayıcının kurulum aşamaları
@@ -597,7 +597,7 @@ sysctl -p "/etc/sysctl.d/40-network-optimization.conf"
 # Öntanımlı hâle getirilen kullanıcı tanımları
 ##########################################################################################
 # Bu özellikle www-data gibi ortak bir ftp kullanıcısı olması için öntanımlı yapıldı.
-useradd -mr -u 221 -g 33 -s /sbin/nologin -d /srv/ftp -c "ftp" ftp
+useradd -mr -u 221 -g 33 -s /sbin/nologin -d /srv/ftp -c "ftp" ftp || true
 
 # Bash geçmisini temizleme
 rm -f ~/.bash_history
