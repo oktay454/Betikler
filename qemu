@@ -1,0 +1,65 @@
+#!/bin/bash
+
+# Aşağıdaki komut ile de QEMU'ya makinenin kapanması için sinyal gönderilebiliyor.
+# nc 127.0.0.1 5800 <<< "system_powerdown"
+
+# Bu kısım geçici ama olması gereken verilerle dolu.
+# Buradaki ortam değişkenleri sonraki süreçte tetikleyici yazılım tarafından atanacak.
+VM_ID="20"
+VM_NAME="template-win2022"
+VM_CORE="4"
+VM_RAM_SIZE="4096"
+VM_DISK="disk1"
+ISO_NAME="en-us_windows_server_2022_updated_nov_2024_x64_dvd_4e34897c.iso"
+BOOT_FROM="d" # "d" is disk, "c" is cdrom
+
+# Betikte olması gereken temel değişkenler bulunmaktadır.
+VM_ID_ZEROIED="$(printf "%02d\n" "${VM_ID}")"
+NETWORK_ADAPTOR="lxcbr0"
+ISO_DIR="/var/lib/iso"
+QEMU_DIR="/var/lib/qemu"
+QEMU_PID_FILE="${QEMU_DIR}/${VM_ID_ZEROIED}/qemu.pid"
+VM_DISK_FILE="${QEMU_DIR}/${VM_ID_ZEROIED}/vm-${VM_ID_ZEROIED}-${VM_DISK}.qcow2"
+CDROM_FILE="${ISO_DIR}/${ISO_NAME}"
+ 
+mkdir -p "${QEMU_DIR}/${VM_ID_ZEROIED}"
+
+function StartVM()
+{
+	if [ -s "${QEMU_PID_FILE}" ]
+	then
+		echo "VM is running or PID file is not cleaned" >&2
+		return 1
+	fi
+
+	if [ -n "${CDROM_FILE}" ]
+	then
+		local CDROM_PARAMETER="-cdrom ${CDROM_FILE}"
+	fi
+
+	if [ -z "${VM_ID}" ] || [ -z "${VM_CORE}" ] || [ -z "${VM_RAM_SIZE}" ] || [ -z "${VM_DISK_FILE}" ] || [ -z "${BOOT_FROM}" ] || [ -z "${NETWORK_ADAPTOR}" ]
+	then
+		echo "Missing environment value" >&2
+		return 2
+	fi
+
+	qemu-system-x86_64 \
+		-pidfile "${QEMU_PID_FILE}" \
+		-k tr \
+		-usb \
+		-usbdevice mouse \
+		-usbdevice keyboard \
+		-usbdevice tablet \
+		-smp "${VM_CORE}" \
+		-m "${VM_RAM_SIZE}" \
+		-enable-kvm \
+		-vnc 0.0.0.0:"${VM_ID}" \
+		-boot "${BOOT_FROM}" \
+		-hda "${VM_DISK_FILE}" \
+		-device e1000,netdev="${NETWORK_ADAPTOR}" -netdev user,id="${NETWORK_ADAPTOR}" \
+		-monitor telnet:127.0.0.1:58"${VM_ID_ZEROIED}",server,nowait \
+		-tpmdev passthrough,id=tpm0 -device tpm-tis,tpmdev=tpm0 \
+		${CDROM_PARAMETER}
+}
+
+StartVM
