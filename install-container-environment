@@ -9,7 +9,7 @@ umask 0022
 # shellcheck disable=SC2034
 DEBIAN_FRONTEND="noninteractive"
 LXC_DIR="/var/lib/lxc"
-PRODUCT_NAME="template-deb12"
+PRODUCT_NAME="template-deb13"
 LXC_IP="10.0.3.200"
 
 PUBLISH_CERT="/usr/local/sbin/publish-cert"
@@ -38,9 +38,9 @@ update-locale "LANG=en_US.UTF-8"
 # Depoları yeniden oluşturma, temel sistem araçları ve gerekli paketlerin kurulumu
 ##########################################################################################
 cat > "/etc/apt/sources.list" << \SOURCES_LIST
-deb http://deb.debian.org/debian/ bookworm main contrib non-free non-free-firmware
-deb http://deb.debian.org/debian-security bookworm-security main contrib non-free non-free-firmware
-deb http://deb.debian.org/debian/ bookworm-updates main contrib non-free non-free-firmware
+deb http://deb.debian.org/debian/ trixie main contrib non-free non-free-firmware
+deb http://deb.debian.org/debian-security trixie-security main contrib non-free non-free-firmware
+deb http://deb.debian.org/debian/ trixie-updates main contrib non-free non-free-firmware
 SOURCES_LIST
 apt purge -y --auto-remove apt-listchanges ufw iptables
 apt update
@@ -267,7 +267,7 @@ net.ipv4.neigh.default.gc_thresh1 = 1024
 net.ipv4.neigh.default.gc_thresh2 = 2048
 net.ipv4.neigh.default.gc_thresh3 = 4096
 NETWORK_OPTIMIZATION
-sysctl -p
+sysctl -p "/etc/sysctl.d/40-network-optimization.conf"
 
 ##########################################################################################
 # nftables yapılandırması
@@ -352,7 +352,6 @@ NFT_COMMON
 systemctl enable lxc-net.service
 systemctl restart lxc-net.service
 
-
 ##########################################################################################
 # Öntanımlı hâle getirilen kullanıcı tanımları
 ##########################################################################################
@@ -375,7 +374,7 @@ then
 fi
 
 # Kapsayıcı(container) oluşturma
-lxc-create "${PRODUCT_NAME,,}" -t debian -- -r bookworm --flush-cache
+lxc-create "${PRODUCT_NAME,,}" -t debian -- -r trixie --flush-cache
 
 # Kapsayıcı ağ yapılandırması
 LXC_IFACE="$(grep "auto" "${LXC_DIR}/${PRODUCT_NAME,,}/rootfs/etc/network/interfaces" | awk '!/lo/ { print $2 }')"
@@ -420,9 +419,9 @@ update-locale "LANG=en_US.UTF-8"
 
 # Depoları yeniden oluşturuluyor
 cat > "/etc/apt/sources.list" << \SOURCES_LIST
-deb http://deb.debian.org/debian/ bookworm main contrib non-free non-free-firmware
-deb http://deb.debian.org/debian-security bookworm-security main contrib non-free non-free-firmware
-deb http://deb.debian.org/debian/ bookworm-updates main contrib non-free non-free-firmware
+deb http://deb.debian.org/debian/ trixie main contrib non-free non-free-firmware
+deb http://deb.debian.org/debian-security trixie-security main contrib non-free non-free-firmware
+deb http://deb.debian.org/debian/ trixie-updates main contrib non-free non-free-firmware
 SOURCES_LIST
 
 # Temel sistem araçları ve gerekli paketlerin kurulumu
@@ -527,6 +526,24 @@ alias .....='cd ../../../..'
 alias ......='cd ../../../../..'
 BASHRC
 
+# MOTD özellikleri
+cat > "/etc/update-motd.d/30-tmux-list" << \MOTD_TMUX_LIST
+#!/bin/bash
+if command -v tmux > /dev/null 2>&1
+then
+	echo "#######################################################################"
+	tmux ls 2>/dev/null || echo "There is no TMUX session open."
+	echo "#######################################################################"
+	echo
+fi
+MOTD_TMUX_LIST
+chmod +x "/etc/update-motd.d/30-tmux-list"
+
+chattr -i "/etc/motd"
+rm "/etc/motd"
+touch "/etc/motd"
+chattr +i "/etc/motd"
+
 ##########################################################################################
 # SSH yapılandırması
 ##########################################################################################
@@ -551,12 +568,10 @@ MaxRetentionSec=1week
 MaxFileSec=1week
 JOURNALD
 
-
 ##########################################################################################
 # Ağ iyileştirmesi
 ##########################################################################################
 cat > "/etc/sysctl.d/40-network-optimization.conf" << \NETWORK_OPTIMIZATION
-```
 # TCP ve UDP tampon bellek
 net.core.rmem_max = 16777216
 net.core.wmem_max = 16777216
@@ -576,7 +591,7 @@ net.ipv4.neigh.default.gc_thresh1 = 1024
 net.ipv4.neigh.default.gc_thresh2 = 2048
 net.ipv4.neigh.default.gc_thresh3 = 4096
 NETWORK_OPTIMIZATION
-sysctl -p
+sysctl -p "/etc/sysctl.d/40-network-optimization.conf"
 
 ##########################################################################################
 # Öntanımlı hâle getirilen kullanıcı tanımları
