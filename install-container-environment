@@ -191,8 +191,8 @@ systemctl restart ssh.service
 ##########################################################################################
 # JournalD yapılandırması
 ##########################################################################################
-sed -i -e '/MaxFileSec=/d' -e '/MaxRetentionSec=/d' "/etc/systemd/journald.conf"
-cat >> "/etc/systemd/journald.conf" <<JOURNALD
+mkdir -p "/etc/systemd/journald.conf.d"
+cat >> "/etc/systemd/journald.conf.d/99-delete-after-one-week.conf" <<JOURNALD
 MaxRetentionSec=1week
 MaxFileSec=1week
 JOURNALD
@@ -562,8 +562,8 @@ systemctl restart ssh.service
 ##########################################################################################
 # JournalD yapılandırması
 ##########################################################################################
-sed -i -e '/MaxFileSec=/d' -e '/MaxRetentionSec=/d' "/etc/systemd/journald.conf"
-cat >> "/etc/systemd/journald.conf" <<JOURNALD
+mkdir -p "/etc/systemd/journald.conf.d"
+cat >> "/etc/systemd/journald.conf.d/99-delete-after-one-week.conf" <<JOURNALD
 MaxRetentionSec=1week
 MaxFileSec=1week
 JOURNALD
