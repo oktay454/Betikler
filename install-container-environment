@@ -74,6 +74,8 @@ let skip_defaults_vim = 1
 set noswapfile
 set ignorecase
 set smartcase
+set pastetoggle=<F3>
+set copyindent
 if has("mouse")
   set mouse=r
 endif
@@ -457,6 +459,8 @@ let skip_defaults_vim = 1
 set noswapfile
 set ignorecase
 set smartcase
+set pastetoggle=<F3>
+set copyindent
 if has("mouse")
   set mouse=r
 endif
