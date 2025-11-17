@@ -249,7 +249,6 @@ LXC_DHCP_MAX="253"
 LXC_NET
 
 cat > "/etc/sysctl.d/40-network-optimization.conf" << \NETWORK_OPTIMIZATION
-```
 # TCP ve UDP tampon bellek
 net.core.rmem_max = 16777216
 net.core.wmem_max = 16777216
