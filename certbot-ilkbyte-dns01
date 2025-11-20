@@ -1,0 +1,130 @@
+#!/bin/bash
+set -e
+SCRIPT_NAME="$(basename "${BASH_SOURCE[0]}")"
+
+##################################################################
+# İŞLEVLER
+##################################################################
+function ExitError()
+{
+	cat >&2 <<OUTPUT
+Hatalı çıkış yapan komut:	${BASH_COMMAND}
+Komutun olduğu satır:		${LINENO}
+OUTPUT
+}
+
+function Usage()
+{
+	cat <<USAGE
+İlkbyte Let's Encrypt _acme-challenge TXT kaydını ekler.
+
+Kullanımı
+=========
+-r => add|delete (Zorunlu)
+-d => Alan adı  (Zorunlu)
+-s => Alt alan adı (İsteğe bağlı)
+-t => Ekleme(add) işlemi yapıldığında kullanılır (Kısmen zorunlu)
+
+Örnekler
+=========
+${SCRIPT_NAME} -r add -d "falanca.com" -t "XXXXXXXXXXXXXXXXXXX"
+${SCRIPT_NAME} -r add -d "falanca.com" -s "api" -t "XXXXXXXXXXXXXXXXXXX"
+${SCRIPT_NAME} -r delete -d "falanca.com"
+${SCRIPT_NAME} -r delete -d "falanca.com" -s "api"
+
+USAGE
+}
+
+function Find()
+{
+	curl -fsSL \
+		-X "${REQUEST_TYPE}" \
+		-H "${REQUEST_HEADER}" \
+		"${API_URL}/${DOMAIN}/show${URL_PARAMETERS_PREFIX}&record_type=TXT" | \
+		jq -r ".data.Records[] | select(.Name == \"_acme-challenge${SUBDOMAIN_DOTTED}\") | .Id"
+}
+
+function Delete()
+{
+	for ID in $(Find)
+	do
+		curl -fsSL \
+			-X "${REQUEST_TYPE}" \
+			-H "${REQUEST_HEADER}" \
+			"${API_URL}/${DOMAIN}/delete${URL_PARAMETERS_PREFIX}&record_id=${ID}" | \
+			jq -r '.status'
+	done
+}
+
+function Add()
+{
+	Delete
+	curl -fsSL \
+		-X "${REQUEST_TYPE}" \
+		-H "${REQUEST_HEADER}" \
+		"${API_URL}/${DOMAIN}/add${URL_PARAMETERS_PREFIX}&record_name=_acme-challenge${SUBDOMAIN_DOTTED}&record_type=TXT&record_priority=120&record_content=\"${TXT_RECORD}\"" | \
+		jq -r '.status'
+}
+
+trap 'ExitError' ERR
+
+if [ "$#" -eq 0 ]
+then
+	Usage
+	exit 2
+fi
+
+ACCESS_KEY="XXXXXXXXXXXXXXXXX"
+SECRET_KEY="XXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+API_URL="https://api.ilkbyte.com/domain/manage"
+REQUEST_TYPE="GET"
+REQUEST_HEADER="accept: application/json"
+URL_PARAMETERS_PREFIX="?access=${ACCESS_KEY}&secret=${SECRET_KEY}"
+
+while getopts "hr:d:s:t:" OPTION
+do
+	case "${OPTION}" in
+		h)
+			Usage
+			exit
+			;;
+		r)
+			VERB="${OPTARG}"
+			;;
+		d)
+			DOMAIN="${OPTARG}"
+			;;
+		s)
+			SUBDOMAIN="${OPTARG}"
+			SUBDOMAIN_DOTTED=".${SUBDOMAIN}"
+			;;
+		t)
+			TXT_RECORD="${OPTARG}"
+			;;
+		*)
+			Usage
+			exit 2
+			;;
+	esac
+done
+
+[ -z "${VERB}" ] && Usage && exit 2
+[ -z "${DOMAIN}" ] && Usage && exit 2
+if [ "${VERB,,}" = "add" ] && [ -z "${TXT_RECORD}" ]
+then
+	Usage
+	exit 2
+fi
+
+case "${VERB,,}" in
+	add)
+		Add
+		;;
+	delete)
+		Delete
+		;;
+	*)
+		Usage
+		exit 2
+		;;
+esac
