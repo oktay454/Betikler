@@ -194,10 +194,12 @@ systemctl restart ssh.service
 # JournalD yapılandırması
 ##########################################################################################
 mkdir -p "/etc/systemd/journald.conf.d"
-cat >> "/etc/systemd/journald.conf.d/99-delete-after-one-week.conf" <<JOURNALD
+cat > "/etc/systemd/journald.conf.d/99-delete-after-one-week.conf" <<JOURNALD
+[Journal]
 MaxRetentionSec=1week
 MaxFileSec=1week
 JOURNALD
+systemctl restart systemd-journald.service
 
 ##########################################################################################
 # Certbot için ek araçlar
@@ -566,10 +568,12 @@ systemctl restart ssh.service
 # JournalD yapılandırması
 ##########################################################################################
 mkdir -p "/etc/systemd/journald.conf.d"
-cat >> "/etc/systemd/journald.conf.d/99-delete-after-one-week.conf" <<JOURNALD
+cat > "/etc/systemd/journald.conf.d/99-delete-after-one-week.conf" <<JOURNALD
+[Journal]
 MaxRetentionSec=1week
 MaxFileSec=1week
 JOURNALD
+systemctl restart systemd-journald.service
 
 ##########################################################################################
 # Ağ iyileştirmesi
