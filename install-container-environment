@@ -313,9 +313,12 @@ nft add chain inet filter input { type filter hook input priority 0\; policy dro
 nft add chain inet filter forward { type filter hook forward priority 0\; policy accept\; }
 nft add chain inet filter output { type filter hook output priority 0\; policy accept\; }
 nft add rule inet filter input ct state related,established counter accept
+nft add rule inet filter input meta l4proto icmp icmp type echo-request accept
 nft add rule inet filter input tcp dport 22 counter accept
 [[ -z "$(nft list chain inet filter output | grep 'ip daddr 10.0.3.0/24 drop')" ]] && \
 nft add rule inet filter output iif $(awk '$2 == "00000000" { print $1 }' /proc/net/route) ip daddr 10.0.3.0/24 drop
+nft add rule inet filter input iifname "lo" accept
+nft add rule inet filter input iifname "lxcbr0" accept
 
 # table: nat
 # chains: prerouting, postrouting, output, input
