@@ -282,8 +282,13 @@ cat > "${SET_NFT_RULES}" << SET_NFT_RULES
 
 sleep 3
 
-test -f "${NFT_COMMON}" && source "${NFT_COMMON}" || true
-test -f "${NFT_RULES}" && source "${NFT_RULES}" || true
+[ -f "/etc/default/lxc-net" ] && source "/etc/default/lxc-net" || true
+
+WAN_IF="$(awk '$2 == "00000000" { print $1 }' "/proc/net/route")"
+[ -z "${LXC_NETWORK}" ] && LXC_NETWORK="10.0.3.0/24"
+
+[ -f "/etc/default/nft-common" ] && source "/etc/default/nft-common" || true
+[ -f "/etc/default/nft-rules" ] && source "/etc/default/nft-rules" || true
 SET_NFT_RULES
 chmod +x "${SET_NFT_RULES}"
 
@@ -310,15 +315,18 @@ nft delete table ip nat 2>/dev/null || true
 # rules: drop from the public interface to the private internal network
 nft add table inet filter
 nft add chain inet filter input { type filter hook input priority 0\; policy drop\; }
-nft add chain inet filter forward { type filter hook forward priority 0\; policy accept\; }
+nft add chain inet filter forward { type filter hook forward priority 0\; policy drop\; }
 nft add chain inet filter output { type filter hook output priority 0\; policy accept\; }
 nft add rule inet filter input ct state related,established counter accept
 nft add rule inet filter input meta l4proto icmp icmp type echo-request accept
 nft add rule inet filter input tcp dport 22 counter accept
-[[ -z "$(nft list chain inet filter output | grep 'ip daddr 10.0.3.0/24 drop')" ]] && \
-nft add rule inet filter output iif $(awk '$2 == "00000000" { print $1 }' /proc/net/route) ip daddr 10.0.3.0/24 drop
 nft add rule inet filter input iifname "lo" accept
 nft add rule inet filter input iifname "lxcbr0" accept
+nft add rule inet filter forward ct state established,related accept
+nft add rule inet filter forward iifname "lxcbr0" oifname "${WAN_IF}" accept
+nft add rule inet filter forward ct status dnat accept
+[[ -z "$(nft list chain inet filter output | grep 'ip daddr 10.0.3.0/24 drop')" ]] && \
+nft add rule inet filter output iif "${WAN_IF}" ip daddr 10.0.3.0/24 drop
 
 # table: nat
 # chains: prerouting, postrouting, output, input
@@ -338,7 +346,7 @@ nft add rule ip nat postrouting ip saddr 10.0.3.0/24 masquerade
 nft add map ip nat tcp2ip { type inet_service : ipv4_addr \; }
 nft add map ip nat tcp2port { type inet_service : inet_service \; }
 [[ -z "$(nft list chain ip nat prerouting | grep 'tcp dport map @tcp2ip:tcp dport map @tcp2port')" ]] && \
-nft add rule ip nat prerouting iif $(awk '$2 == "00000000" { print $1 }' /proc/net/route) dnat tcp dport map @tcp2ip:tcp dport map @tcp2port
+nft add rule ip nat prerouting iif ${WAN_IF} dnat tcp dport map @tcp2ip:tcp dport map @tcp2port
 [[ -z "$(nft list chain ip nat output | grep 'tcp dport map @tcp2ip:tcp dport map @tcp2port')" ]] && \
 nft add rule ip nat output oif lo dnat tcp dport map @tcp2ip:tcp dport map @tcp2port
 
@@ -349,7 +357,7 @@ nft add rule ip nat output oif lo dnat tcp dport map @tcp2ip:tcp dport map @tcp2
 nft add map ip nat udp2ip { type inet_service : ipv4_addr \; }
 nft add map ip nat udp2port { type inet_service : inet_service \; }
 [[ -z "$(nft list chain ip nat prerouting | grep 'udp dport map @udp2ip:udp dport map @udp2port')" ]] && \
-nft add rule ip nat prerouting iif $(awk '$2 == "00000000" { print $1 }' /proc/net/route) dnat udp dport map @udp2ip:udp dport map @udp2port
+nft add rule ip nat prerouting iif ${WAN_IF} dnat udp dport map @udp2ip:udp dport map @udp2port
 [[ -z "$(nft list chain ip nat output | grep 'udp dport map @udp2ip:udp dport map @udp2port')" ]] && \
 nft add rule ip nat output oif lo dnat udp dport map @udp2ip:udp dport map @udp2port
 NFT_COMMON
