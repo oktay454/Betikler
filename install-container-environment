@@ -302,7 +302,7 @@ SERVICE
 systemctl daemon-reload
 
 # Genel nftables yapılandırması -varsa tarih sonekli olarak yedeklenip yeniden- oluşturulur
-test -f "${NFT_COMMON}" && mv "${NFT_COMMON}"{,"-$(date "+%F_%H-%M-%S")-${PRODUCT_NAME}"}
+[ -f "${NFT_COMMON}" ] && mv "${NFT_COMMON}"{,"-$(date "+%F_%H-%M-%S")-${PRODUCT_NAME}"}
 cat > "${NFT_COMMON}" << \NFT_COMMON
 ##########################################################################################
 # Genel nftables yapılandırması
