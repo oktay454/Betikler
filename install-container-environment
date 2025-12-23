@@ -49,7 +49,7 @@ apt install -y \
 	file tree htop vim tmux wget curl coreutils locales \
 	moreutils apt-transport-https gnupg certbot psmisc \
 	debconf-utils bind9-dnsutils lxc lxc-templates nftables gawk \
-	unattended-upgrades needrestart netcat-openbsd
+	unattended-upgrades needrestart netcat-openbsd umoci
 
 cat > "/etc/apt/apt.conf.d/20keepconfig.conf" <<\APT_KEEP_CONFIG
 Dpkg::Options {
