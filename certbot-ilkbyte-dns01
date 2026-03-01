@@ -1,0 +1,195 @@
+#!/bin/bash
+set -e
+SCRIPT_NAME="$(basename "${BASH_SOURCE[0]}")"
+
+##################################################################
+# İŞLEVLER
+##################################################################
+function ExitError()
+{
+	cat >&2 <<OUTPUT
+Hatalı çıkış yapan komut:	${BASH_COMMAND}
+Komutun olduğu satır:		${LINENO}
+OUTPUT
+}
+
+function Usage()
+{
+	cat <<USAGE
+İlkbyte Let's Encrypt _acme-challenge TXT kaydını ekler.
+
+Kullanımı
+=========
+-r => add|delete (Zorunlu)
+-d => Alan adı  (Zorunlu)
+-s => Alt alan adı (İsteğe bağlı)
+-t => TXT kaydının süresi. Öntanımlı 120 saniye (İsteğe bağlı)
+-v => Ekleme(add) işlemi yapıldığında kullanılır (Ekleme için zorunlu)
+-w => DNS kaydının güncellendiğini doğrular
+
+Örnekler
+=========
+${SCRIPT_NAME} -r add -d "falanca.com" -v "XXXXXXXXXXXXXXXXXXX"
+${SCRIPT_NAME} -r add -d "falanca.com" -s "api" -v "XXXXXXXXXXXXXXXXXXX"
+${SCRIPT_NAME} -r delete -d "falanca.com"
+${SCRIPT_NAME} -r delete -d "falanca.com" -s "api"
+
+USAGE
+}
+
+function Find()
+{
+	curl -fsSL \
+		-X "${REQUEST_TYPE}" \
+		-H "${REQUEST_HEADER}" \
+		"${API_URL}/${DOMAIN}/show${URL_PARAMETERS_PREFIX}&record_type=TXT" | \
+		jq -r ".data.Records[] | select(.Name == \"_acme-challenge${SUBDOMAIN_DOTTED}\") | .Id"
+}
+
+function Delete()
+{
+	for ID in $(Find)
+	do
+		curl -fsSL \
+			-X "${REQUEST_TYPE}" \
+			-H "${REQUEST_HEADER}" \
+			"${API_URL}/${DOMAIN}/delete${URL_PARAMETERS_PREFIX}&record_id=${ID}" > /dev/null 2>&1
+	done
+}
+
+function Add()
+{
+	if $(curl -fsSL \
+		-X "${REQUEST_TYPE}" \
+		-H "${REQUEST_HEADER}" \
+		"${API_URL}/${DOMAIN}/add${URL_PARAMETERS_PREFIX}&record_name=_acme-challenge${SUBDOMAIN_DOTTED}&record_type=TXT&record_priority=${TTL}&record_content=\"${TXT_RECORD}\"" | \
+		jq -r '.status')
+	then
+		return 0
+	else
+		return 1
+	fi
+}
+
+function Push()
+{
+	if $(curl -fsSL \
+		-X "${REQUEST_TYPE}" \
+		-H "${REQUEST_HEADER}" \
+		"${API_URL}/${DOMAIN}/push${URL_PARAMETERS_PREFIX}" | \
+		jq -r '.status')
+	then
+		return 0
+	else
+		return 1
+	fi
+}
+
+function WaitForProcessing()
+{
+	if [ "${VERB}" == "delete" ]
+	then
+		return 0
+	elif ${WAIT_FOR_PROCESSING}
+	then
+		for TIME in {1..20}
+		do
+			TXT_RECORD_ON_DNS_SERVER="$(dig +short TXT "_acme-challenge${SUBDOMAIN_DOTTED}.${DOMAIN}" @${DNS_SERVER} | tr -d '"' | head -n 1)"
+			if [ "${TXT_RECORD}" == "${TXT_RECORD_ON_DNS_SERVER}" ]
+			then
+				RETURN_VALUE="0"
+				break
+			else
+				RETURN_VALUE="1"
+			fi
+			sleep 10
+		done
+		return "${RETURN_VALUE}"
+	else
+		return 0
+	fi
+}
+
+trap 'ExitError' ERR
+
+if [ "$#" -eq 0 ]
+then
+	Usage
+	exit 2
+fi
+
+ACCESS_KEY="XXXXXXXXXXXXXXXXX"
+SECRET_KEY="XXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+ENVIRONMENT_FILE="/etc/default/certbot-ilkbyte-dns01"
+WAIT_FOR_PROCESSING="false"
+API_URL="https://api.ilkbyte.com/domain/manage"
+REQUEST_TYPE="GET"
+REQUEST_HEADER="accept: application/json"
+TTL="120"
+DNS_SERVER="1.1.1.1"
+DOMAIN="${CERTBOT_DOMAIN}"
+TXT_RECORD="${CERTBOT_VALIDATION}"
+if [ -f "${ENVIRONMENT_FILE}" ] && [ -r "${ENVIRONMENT_FILE}" ]
+then
+	source "${ENVIRONMENT_FILE}"
+fi
+URL_PARAMETERS_PREFIX="?access=${ACCESS_KEY}&secret=${SECRET_KEY}"
+
+while getopts "hr:d:s:v:t:w" OPTION
+do
+	case "${OPTION}" in
+		h)
+			Usage
+			exit
+			;;
+		r)
+			VERB="${OPTARG}"
+			;;
+		d)
+			DOMAIN="${OPTARG}"
+			;;
+		s)
+			SUBDOMAIN="${OPTARG}"
+			SUBDOMAIN_DOTTED=".${SUBDOMAIN}"
+			;;
+		v)
+			TXT_RECORD="${OPTARG}"
+			;;
+		t)
+			TTL="${OPTARG}"
+			;;
+		w)
+			WAIT_FOR_PROCESSING="true"
+			;;
+		*)
+			Usage
+			exit 2
+			;;
+	esac
+done
+
+[ -z "${VERB}" ] && Usage && exit 2
+[ -z "${DOMAIN}" ] && Usage && exit 2
+if [ "${VERB,,}" = "add" ] && [ -z "${TXT_RECORD}" ]
+then
+	Usage
+	exit 2
+fi
+
+case "${VERB,,}" in
+	add)
+		Delete
+		Add
+		Push
+		;;
+	delete)
+		Delete
+		Push
+		;;
+	*)
+		Usage
+		exit 2
+		;;
+esac
+
+WaitForProcessing
