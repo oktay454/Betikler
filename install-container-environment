@@ -14,8 +14,8 @@ LXC_IP="10.0.3.200"
 
 PUBLISH_CERT="/usr/local/sbin/publish-cert"
 SET_NFT_RULES="/usr/local/sbin/set-nft-rules"
-NFT_COMMON="/etc/default/nft-common"
-NFT_RULES="/etc/default/nft-rules"
+NFT_COMMON_FILE="/etc/default/nft-common"
+NFT_RULES_FILE="/etc/default/nft-rules"
 
 ##########################################################################################
 # Sistemin dili yapılandırıyor
@@ -278,9 +278,39 @@ cat > "${SET_NFT_RULES}" << SET_NFT_RULES
 #!/bin/bash
 
 sleep 3
+LXC_NET_DEFAULT_FILE="/etc/default/lxc-net"
+NFT_COMMON_FILE="${NFT_COMMON_FILE}"
+NFT_RULES_FILE="${NFT_RULES_FILE}"
 
-test -f "${NFT_COMMON}" && source "${NFT_COMMON}" || true
-test -f "${NFT_RULES}" && source "${NFT_RULES}" || true
+if [ -f "\${LXC_NET_DEFAULT_FILE}" ] && [ -r "\${LXC_NET_DEFAULT_FILE}" ]
+then
+	source "\${LXC_NET_DEFAULT_FILE}" || true
+fi
+
+[ -z "\${LXC_NETWORK}" ] && LXC_NETWORK="10.0.3.0/24"
+[ -z "\${LXC_BRIDGE}" ] && LXC_BRIDGE="lxcbr0"
+[ -z "\${LXC_BRIDGE_MAC}" ] && LXC_BRIDGE_MAC="00:16:3e:00:00:00"
+[ -z "\${LXC_ADDR}" ] && LXC_ADDR="10.0.3.1"
+[ -z "\${LXC_NETMASK}" ] && LXC_NETMASK="255.255.255.0"
+
+[ -z "\${LXC_IPV6_ENABLE}" ] && LXC_IPV6_ENABLE="true"
+[ -z "\${LXC_IPV6_ADDR}" ] && LXC_IPV6_ADDR="fc42:5009:ba4b:5ab0::1"
+[ -z "\${LXC_IPV6_MASK}" ] && LXC_IPV6_MASK="64"
+[ -z "\${LXC_IPV6_NETWORK}" ] && LXC_IPV6_NETWORK="fc42:5009:ba4b:5ab0::/64"
+[ -z "\${LXC_IPV6_NAT}" ] && LXC_IPV6_NAT="true"
+
+WAN_IF="\$(awk '\$2 == "00000000" { print \$1 }' "/proc/net/route")"
+WAN_IP="\$(ip -4 addr show "\${WAN_IF}" | grep -oP '(?<=inet\s)\\d+(\\.\\d+){3}' | head -n 1)"
+
+if [ -f "\${NFT_COMMON_FILE}" ] && [ -f "\${NFT_COMMON_FILE}" ]
+then
+	source "\${NFT_COMMON_FILE}" || true
+fi
+
+if [ -f "\${NFT_RULES_FILE}" ] && [ -f "\${NFT_RULES_FILE}" ]
+then
+	source "\${NFT_RULES_FILE}" || true
+fi
 SET_NFT_RULES
 chmod +x "${SET_NFT_RULES}"
 
@@ -294,8 +324,8 @@ SERVICE
 systemctl daemon-reload
 
 # Genel nftables yapılandırması -varsa tarih sonekli olarak yedeklenip yeniden- oluşturulur
-test -f "${NFT_COMMON}" && mv "${NFT_COMMON}"{,"-$(date "+%F_%H-%M-%S")-${PRODUCT_NAME}"}
-cat > "${NFT_COMMON}" << \NFT_COMMON
+[ -f "${NFT_COMMON_FILE}" ] && mv "${NFT_COMMON_FILE}"{,"-$(date "+%F_%H-%M-%S")-${PRODUCT_NAME}"}
+cat > "${NFT_COMMON_FILE}" << \NFT_COMMON_FILE
 ##########################################################################################
 # Genel nftables yapılandırması
 ##########################################################################################
@@ -346,7 +376,7 @@ nft add map ip nat udp2port { type inet_service : inet_service \; }
 nft add rule ip nat prerouting iif $(awk '$2 == "00000000" { print $1 }' /proc/net/route) dnat udp dport map @udp2ip:udp dport map @udp2port
 [[ -z "$(nft list chain ip nat output | grep 'udp dport map @udp2ip:udp dport map @udp2port')" ]] && \
 nft add rule ip nat output oif lo dnat udp dport map @udp2ip:udp dport map @udp2port
-NFT_COMMON
+NFT_COMMON_FILE
 
 # Ağ yapılandırması sonrası hizmetlerin yeniden başlatılması
 systemctl enable lxc-net.service
