@@ -13,9 +13,8 @@ PRODUCT_NAME="template-deb13"
 LXC_IP="10.0.3.200"
 
 PUBLISH_CERT="/usr/local/sbin/publish-cert"
-SET_NFT_RULES="/usr/local/sbin/set-nft-rules"
-NFT_COMMON_FILE="/etc/default/nft-common"
-NFT_RULES_FILE="/etc/default/nft-rules"
+SET_LXC_NETWORK_RULES="/usr/local/sbin/set-lxc-network-rules"
+NETWORK_RULES="/etc/lxc/network-rules.conf"
 
 ##########################################################################################
 # Sistemin dili yapılandırıyor
@@ -238,13 +237,38 @@ systemctl daemon-reload
 ##########################################################################################
 cat > "/etc/default/lxc-net" << \LXC_NET
 USE_LXC_BRIDGE="true"
+LXC_BRIDGE="lxcbr0"
 LXC_BRIDGE_MAC="00:16:3e:00:00:00"
 LXC_ADDR="10.0.3.1"
 LXC_NETMASK="255.255.255.0"
 LXC_NETWORK="10.0.3.0/24"
 LXC_DHCP_RANGE="10.0.3.200,10.0.3.254"
 LXC_DHCP_MAX="253"
+LXC_DHCP_CONFILE=""
+LXC_DHCP_PING="true"
+LXC_DOMAIN=""
+LXC_USE_NFT="true"
+
+LXC_IPV6_ENABLE="false"
+LXC_IPV6_ADDR="fc42:5009:ba4b:5ab0::1"
+LXC_IPV6_MASK="64"
+LXC_IPV6_NETWORK="fc42:5009:ba4b:5ab0::/64"
+LXC_IPV6_NAT="true"
+
+LXC_DHCP_CONFILE="/etc/lxc/dnsmasq.conf"
 LXC_NET
+
+if [ ! -f "/etc/lxc/dnsmasq.conf" ]
+then
+	rm -rf "/etc/lxc/dnsmasq.conf"
+	cat > "/etc/lxc/dnsmasq.conf" << \DNSMASQ
+no-negcache
+cache-size=0
+
+# Örnek DNS kaydı
+#address=/example.com/10.0.3.200
+DNSMASQ
+if
 
 cat > "/etc/sysctl.d/40-network-optimization.conf" << \NETWORK_OPTIMIZATION
 # TCP ve UDP tampon bellek
@@ -268,114 +292,271 @@ net.ipv4.neigh.default.gc_thresh3 = 4096
 NETWORK_OPTIMIZATION
 sysctl -p "/etc/sysctl.d/40-network-optimization.conf"
 
-##########################################################################################
-# nftables yapılandırması
-##########################################################################################
-# nft komutları /etc/default/nft-{common,rules} dosyalarına eklenir.
+# Ağ kuralları /etc/lxc/network-rules.conf dosyasına eklenir.
 # Daha kolay yönetebilirlik sağlamak için böyle bir yöntem tercih edildi.
-cat > "${SET_NFT_RULES}" << SET_NFT_RULES
+cat > "${SET_NFT_RULES}" << \SET_LXC_NETWORK_RULES
 #!/bin/bash
 
-sleep 3
+sleep 2
 LXC_NET_DEFAULT_FILE="/etc/default/lxc-net"
-NFT_COMMON_FILE="${NFT_COMMON_FILE}"
-NFT_RULES_FILE="${NFT_RULES_FILE}"
+NETWORK_RULES="/etc/lxc/network-rules.conf"
 
-if [ -f "\${LXC_NET_DEFAULT_FILE}" ] && [ -r "\${LXC_NET_DEFAULT_FILE}" ]
+if [ -f "${LXC_NET_DEFAULT_FILE}" ] && [ -r "${LXC_NET_DEFAULT_FILE}" ]
 then
-	source "\${LXC_NET_DEFAULT_FILE}" || true
+	source "${LXC_NET_DEFAULT_FILE}" || true
 fi
 
-[ -z "\${LXC_NETWORK}" ] && LXC_NETWORK="10.0.3.0/24"
-[ -z "\${LXC_BRIDGE}" ] && LXC_BRIDGE="lxcbr0"
-[ -z "\${LXC_BRIDGE_MAC}" ] && LXC_BRIDGE_MAC="00:16:3e:00:00:00"
-[ -z "\${LXC_ADDR}" ] && LXC_ADDR="10.0.3.1"
-[ -z "\${LXC_NETMASK}" ] && LXC_NETMASK="255.255.255.0"
+[ -z "${USE_LXC_BRIDGE}" ] && USE_LXC_BRIDGE="true"
+[ -z "${LXC_BRIDGE}" ] && LXC_BRIDGE="lxcbr0"
+[ -z "${LXC_BRIDGE_MAC}" ] && LXC_BRIDGE_MAC="00:16:3e:00:00:00"
+[ -z "${LXC_ADDR}" ] && LXC_ADDR="10.0.3.1"
+[ -z "${LXC_NETMASK}" ] && LXC_NETMASK="255.255.255.0"
+[ -z "${LXC_NETWORK}" ] && LXC_NETWORK="10.0.3.0/24"
+[ -z "${LXC_DHCP_RANGE}" ] && LXC_DHCP_RANGE="10.0.3.200,10.0.3.254"
+[ -z "${LXC_DHCP_MAX}" ] && LXC_DHCP_MAX="253"
+[ -z "${LXC_DHCP_PING}" ] && LXC_DHCP_PING="true"
+[ -z "${LXC_DOMAIN}" ] && LXC_DOMAIN=""
+[ -z "${LXC_USE_NFT}" ] && LXC_USE_NFT="true"
 
-[ -z "\${LXC_IPV6_ENABLE}" ] && LXC_IPV6_ENABLE="true"
-[ -z "\${LXC_IPV6_ADDR}" ] && LXC_IPV6_ADDR="fc42:5009:ba4b:5ab0::1"
-[ -z "\${LXC_IPV6_MASK}" ] && LXC_IPV6_MASK="64"
-[ -z "\${LXC_IPV6_NETWORK}" ] && LXC_IPV6_NETWORK="fc42:5009:ba4b:5ab0::/64"
-[ -z "\${LXC_IPV6_NAT}" ] && LXC_IPV6_NAT="true"
+[ -z "${LXC_IPV6_ENABLE}" ] && LXC_IPV6_ENABLE="false"
+[ -z "${LXC_IPV6_ADDR}" ] && LXC_IPV6_ADDR="fc42:5009:ba4b:5ab0::1"
+[ -z "${LXC_IPV6_MASK}" ] && LXC_IPV6_MASK="64"
+[ -z "${LXC_IPV6_NETWORK}" ] && LXC_IPV6_NETWORK="fc42:5009:ba4b:5ab0::/64"
+[ -z "${LXC_IPV6_NAT}" ] && LXC_IPV6_NAT="true"
 
-WAN_IF="\$(awk '\$2 == "00000000" { print \$1 }' "/proc/net/route")"
-WAN_IP="\$(ip -4 addr show "\${WAN_IF}" | grep -oP '(?<=inet\s)\\d+(\\.\\d+){3}' | head -n 1)"
+[ -z "${LXC_DHCP_CONFILE}" ] && LXC_DHCP_CONFILE="/etc/lxc/dnsmasq.conf"
 
-if [ -f "\${NFT_COMMON_FILE}" ] && [ -f "\${NFT_COMMON_FILE}" ]
+# LXC ağı kullanılmayacaksa kuralları temizleyip çıkar.
+if [ "${USE_LXC_BRIDGE}" != "true" ]
 then
-	source "\${NFT_COMMON_FILE}" || true
+	nft delete table inet filter 2>/dev/null || true
+	nft delete table ip nat 2>/dev/null || true
+	nft delete table ip6 nat 2>/dev/null || true
+	exit 0
 fi
 
-if [ -f "\${NFT_RULES_FILE}" ] && [ -f "\${NFT_RULES_FILE}" ]
+# WAN portu ve IP adresi tesbit edilir.
+[ -z "${WAN_IF}" ] && WAN_IF="$(awk '$2 == "00000000" { print $1 }' "/proc/net/route")"
+[ -z "${WAN_IP}" ] && WAN_IP="$(ip -4 addr show "${WAN_IF}" | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | grep -v ^127 | head -n 1)"
+[ -z "${WAN_IP}" ] && WAN_IP6="$(ip -6 addr show "${WAN_IF}" | grep "scope global" | grep -oP '(?<=inet6\s)[a-fA-F0-9:]+' | head -n 1)"
+
+
+if [ "${LXC_USE_NFT}" == "true" ]
 then
-	source "\${NFT_RULES_FILE}" || true
+	# IPv4 Yönlendirme İşlevi
+	function AddPortForward() {
+		local PROTO=$1
+		local PORT=$2
+		local TARGET_IP=$3
+		local TARGET_PORT=${4:-$PORT}
+
+		nft add rule ip nat prerouting iif "${WAN_IF}" "${PROTO}" dport "${PORT}" dnat to "${TARGET_IP}:${TARGET_PORT}"
+		nft add rule ip nat prerouting iif "${LXC_BRIDGE}" ip daddr "${WAN_IP}" "${PROTO}" dport "${PORT}" dnat to "${TARGET_IP}:${TARGET_PORT}"
+		nft add rule ip nat output oif "lo" "${PROTO}" dport "${PORT}" dnat to "${TARGET_IP}:${TARGET_PORT}"
+	}
+
+	# IPv6 Yönlendirme İşlevi
+	function AddPortForward6() {
+		local PROTO=$1
+		local PORT=$2
+		local TARGET_IP6=$3
+		local TARGET_PORT=${4:-$PORT}
+
+		# Dış ağdan (WAN) gelen yönlendirmeler
+		nft add rule ip6 nat prerouting iif "${WAN_IF}" "${PROTO}" dport "${PORT}" dnat to "[${TARGET_IP6}]:${TARGET_PORT}"
+
+		# İç ağdan (LXC) dış IP'ye gelen yönlendirmeler (Sadece WAN_IP6 tanımlıysa çalışır)
+		if [ -n "${WAN_IP6}" ]; then
+			nft add rule ip6 nat prerouting iif "${LXC_BRIDGE}" ip6 daddr "${WAN_IP6}" "${PROTO}" dport "${PORT}" dnat to "[${TARGET_IP6}]:${TARGET_PORT}"
+		fi
+
+		# Sunucunun kendisinden (localhost) giden istekler (Hairpin NAT)
+		nft add rule ip6 nat output oif "lo" "${PROTO}" dport "${PORT}" dnat to "[${TARGET_IP6}]:${TARGET_PORT}"
+	}
+
+	##########################################################################################
+	# Genel nftables yapılandırması
+	##########################################################################################
+	nft delete table inet filter 2>/dev/null || true
+	nft delete table ip nat 2>/dev/null || true
+	nft delete table ip6 nat 2>/dev/null || true
+
+	# table: filter (Hem IPv4 hem IPv6 için geçerlidir)
+	nft add table inet filter
+	nft add chain inet filter input { type filter hook input priority 0\; policy drop\; }
+	nft add chain inet filter forward { type filter hook forward priority 0\; policy drop\; }
+	nft add chain inet filter output { type filter hook output priority 0\; policy accept\; }
+
+	nft add rule inet filter input ct state related,established counter accept
+	nft add rule inet filter input meta l4proto icmp icmp type echo-request accept
+	nft add rule inet filter input tcp dport 22 counter accept
+	nft add rule inet filter input iifname "lo" accept
+	nft add rule inet filter input iifname "${LXC_BRIDGE}" accept
+
+	nft add rule inet filter forward ct state established,related accept
+	nft add rule inet filter forward iifname "${LXC_BRIDGE}" oifname "${WAN_IF}" accept
+	nft add rule inet filter forward ct status dnat accept
+	nft add rule inet filter output iif "${WAN_IF}" ip daddr "${LXC_NETWORK}" drop
+
+	# table: nat (Sadece IPv4 için)
+	nft add table ip nat
+	nft add chain ip nat prerouting { type nat hook prerouting priority 0 \; }
+	nft add chain ip nat postrouting { type nat hook postrouting priority 100 \; }
+	nft add chain ip nat output { type nat hook output priority 0 \; }
+	nft add chain ip nat input { type nat hook input priority 0 \; }
+	nft add rule ip nat postrouting ip saddr "${LXC_NETWORK}" masquerade
+
+	# table: nat6 (Sadece IPv6 için)
+	if [ "${LXC_IPV6_NAT}" = "true" ]; then
+		nft add table ip6 nat
+		nft add chain ip6 nat prerouting { type nat hook prerouting priority 0 \; }
+		nft add chain ip6 nat postrouting { type nat hook postrouting priority 100 \; }
+		nft add chain ip6 nat output { type nat hook output priority 0 \; }
+		nft add chain ip6 nat input { type nat hook input priority 0 \; }
+
+		nft add rule ip6 nat postrouting ip6 saddr "${LXC_IPV6_NETWORK}" masquerade
+	fi
+	##########################################################################################
+else
+	AddPortForward() {
+		local PROTO=$1
+		local PORT=$2
+		local TARGET_IP=$3
+		local TARGET_PORT=${4:-$PORT}
+
+		# Dış ağdan (WAN) ve iç ağdan (LXC) dış IP'ye gelen yönlendirmeler
+		iptables -t nat -A PREROUTING -d "${WAN_IP}" -p "${PROTO}" --dport "${PORT}" -j DNAT --to-destination "${TARGET_IP}:${TARGET_PORT}"
+
+		# Sunucunun kendisinden (localhost) dış IP'ye giden istekler (Hairpin NAT)
+		iptables -t nat -A OUTPUT -d "${WAN_IP}" -p "${PROTO}" --dport "${PORT}" -j DNAT --to-destination "${TARGET_IP}:${TARGET_PORT}"
+	}
+
+	# IPv6 Yönlendirme İşlevi (Function)
+	AddPortForward6() {
+		local PROTO=$1
+		local PORT=$2
+		local TARGET_IP6=$3
+		local TARGET_PORT=${4:-$PORT}
+
+		# Eğer WAN_IP6 tanımlıysa net IP üzerinden yönlendir
+		if [ -n "${WAN_IP6}" ]; then
+			ip6tables -t nat -A PREROUTING -d "${WAN_IP6}" -p "${PROTO}" --dport "${PORT}" -j DNAT --to-destination "[${TARGET_IP6}]:${TARGET_PORT}"
+			ip6tables -t nat -A OUTPUT -d "${WAN_IP6}" -p "${PROTO}" --dport "${PORT}" -j DNAT --to-destination "[${TARGET_IP6}]:${TARGET_PORT}"
+		else
+			# WAN_IP6 bilinmiyorsa, WAN_IF arayüzünden gelen tüm trafiği yönlendir
+			ip6tables -t nat -A PREROUTING -i "${WAN_IF}" -p "${PROTO}" --dport "${PORT}" -j DNAT --to-destination "[${TARGET_IP6}]:${TARGET_PORT}"
+		fi
+	}
+
+	##########################################################################################
+	# Genel iptables ve ip6tables yapılandırması
+	##########################################################################################
+	# --------------------------------- IPv4 BÖLÜMÜ ------------------------------------------
+	iptables -F
+	iptables -X
+	iptables -t nat -F
+	iptables -t nat -X
+
+	iptables -P INPUT DROP
+	iptables -P FORWARD DROP
+	iptables -P OUTPUT ACCEPT
+
+	# IPv4 INPUT Zinciri (Chain)
+	iptables -A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT
+	iptables -A INPUT -p icmp --icmp-type echo-request -j ACCEPT
+	iptables -A INPUT -p tcp --dport 22 -j ACCEPT
+	iptables -A INPUT -i lo -j ACCEPT
+	iptables -A INPUT -i "${LXC_BRIDGE}" -j ACCEPT
+
+	# IPv4 FORWARD Zinciri (Chain)
+	iptables -A FORWARD -m state --state RELATED,ESTABLISHED -j ACCEPT
+	iptables -A FORWARD -i "${LXC_BRIDGE}" -o "${WAN_IF}" -j ACCEPT
+	iptables -A FORWARD -d "${LXC_NETWORK}" -j ACCEPT
+	iptables -A OUTPUT -o "${WAN_IF}" -d "${LXC_NETWORK}" -j DROP
+
+	# IPv4 NAT ve Kaynak IP Dönüşümü (SNAT)
+	iptables -t nat -A POSTROUTING -s "${LXC_NETWORK}" ! -o "${LXC_BRIDGE}" -j SNAT --to-source "${WAN_IP}"
+
+	# --------------------------------- IPv6 BÖLÜMÜ ------------------------------------------
+	ip6tables -F 2>/dev/null || true
+	ip6tables -X 2>/dev/null || true
+	ip6tables -t nat -F 2>/dev/null || true
+	ip6tables -t nat -X 2>/dev/null || true
+
+	if [ "${LXC_IPV6_ENABLE}" = "true" ]; then
+		ip6tables -P INPUT DROP
+		ip6tables -P FORWARD DROP
+		ip6tables -P OUTPUT ACCEPT
+
+		# IPv6 INPUT Zinciri (Chain)
+		ip6tables -A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT
+		ip6tables -A INPUT -p ipv6-icmp --icmpv6-type echo-request -j ACCEPT
+		ip6tables -A INPUT -p tcp --dport 22 -j ACCEPT
+		ip6tables -A INPUT -i lo -j ACCEPT
+		ip6tables -A INPUT -i "${LXC_BRIDGE}" -j ACCEPT
+
+		# IPv6 FORWARD Zinciri (Chain)
+		ip6tables -A FORWARD -m state --state RELATED,ESTABLISHED -j ACCEPT
+		ip6tables -A FORWARD -i "${LXC_BRIDGE}" -o "${WAN_IF}" -j ACCEPT
+		ip6tables -A FORWARD -d "${LXC_IPV6_NETWORK}" -j ACCEPT
+		ip6tables -A OUTPUT -o "${WAN_IF}" -d "${LXC_IPV6_NETWORK}" -j DROP
+	fi
+
+	# IPv6 NAT Tablosu (Sadece LXC_IPV6_NAT true ise)
+	if [ "${LXC_IPV6_NAT}" = "true" ]; then
+		if [ -n "${WAN_IP6}" ]; then
+			ip6tables -t nat -A POSTROUTING -s "${LXC_IPV6_NETWORK}" ! -o "${LXC_BRIDGE}" -j SNAT --to-source "${WAN_IP6}"
+		else
+			# Açık bir IPv6 adresi yoksa otomatik maskeleme yap
+			ip6tables -t nat -A POSTROUTING -s "${LXC_IPV6_NETWORK}" ! -o "${LXC_BRIDGE}" -j MASQUERADE
+		fi
+	fi
+
 fi
-SET_NFT_RULES
-chmod +x "${SET_NFT_RULES}"
+
+
+if [ -f "${NETWORK_RULES}" ] && [ -r "${NETWORK_RULES}" ]
+then
+	source "${NETWORK_RULES}" || true
+fi
+SET_LXC_NETWORK_RULES
+chmod +x "${SET_LXC_NETWORK_RULES}"
+
+if [ ! -f "${NETWORK_RULES}" ]
+then
+	rm -rf "${NETWORK_RULES}"
+	cat > "${NETWORK_RULES}" << NETWORK_RULES
+#####################
+# Kullanım (USAGE)
+#####################
+# AddPortForward  <PROTOCOL> <WAN_PORT> <CONTAINER_IPv4> [<CONTAINER_PORT>]
+# AddPortForward6 <PROTOCOL> <WAN_PORT> <CONTAINER_IPv6> [<CONTAINER_PORT>]
+
+#####################
+# Örnekler (Examples)
+#####################
+# IPv4
+#AddPortForward tcp 80 10.0.3.20
+#AddPortForward tcp 443 10.0.3.20
+#AddPortForward udp 53 10.0.3.40
+#AddPortForward tcp 10443 10.0.3.30 443
+
+# IPv6
+#AddPortForward6 tcp 80 fc42:5009:ba4b:5ab0::20
+#AddPortForward6 tcp 443 fc42:5009:ba4b:5ab0::20
+#AddPortForward6 udp 53 fc42:5009:ba4b:5ab0::40
+#AddPortForward6 tcp 10443 fc42:5009:ba4b:5ab0::30 443
+NETWORK_RULES
+fi
 
 mkdir -p "/etc/systemd/system/lxc-net.service.d/"
-cat > "/etc/systemd/system/lxc-net.service.d/50-set-nft-rules.conf" << SERVICE
+cat > "/etc/systemd/system/lxc-net.service.d/50-set-lxc-network-rules.conf" << SERVICE
 [Unit]
 After=nftables.service
 [Service]
-ExecStartPost=${SET_NFT_RULES}
+ExecStartPost=${SET_LXC_NETWORK_RULES}
 SERVICE
 systemctl daemon-reload
-
-# Genel nftables yapılandırması -varsa tarih sonekli olarak yedeklenip yeniden- oluşturulur
-[ -f "${NFT_COMMON_FILE}" ] && mv "${NFT_COMMON_FILE}"{,"-$(date "+%F_%H-%M-%S")-${PRODUCT_NAME}"}
-cat > "${NFT_COMMON_FILE}" << \NFT_COMMON_FILE
-##########################################################################################
-# Genel nftables yapılandırması
-##########################################################################################
-nft delete table inet filter 2>/dev/null || true
-nft delete table ip nat 2>/dev/null || true
-
-# table: filter
-# chains: input, forward, output
-# rules: drop from the public interface to the private internal network
-nft add table inet filter
-nft add chain inet filter input { type filter hook input priority 0\; policy drop\; }
-nft add chain inet filter forward { type filter hook forward priority 0\; policy accept\; }
-nft add chain inet filter output { type filter hook output priority 0\; policy accept\; }
-nft add rule inet filter input ct state related,established counter accept
-nft add rule inet filter input tcp dport 22 counter accept
-[[ -z "$(nft list chain inet filter output | grep 'ip daddr 10.0.3.0/24 drop')" ]] && \
-nft add rule inet filter output iif $(awk '$2 == "00000000" { print $1 }' /proc/net/route) ip daddr 10.0.3.0/24 drop
-
-# table: nat
-# chains: prerouting, postrouting, output, input
-# rules: masquerade
-nft add table ip nat
-nft add chain ip nat prerouting { type nat hook prerouting priority 0 \; }
-nft add chain ip nat postrouting { type nat hook postrouting priority 100 \; }
-nft add chain ip nat output { type nat hook output priority 0 \; }
-nft add chain ip nat input { type nat hook input priority 0 \; }
-[[ -z "$(nft list chain ip nat postrouting | grep 'ip saddr 10.0.3.0/24 masquerade')" ]] && \
-nft add rule ip nat postrouting ip saddr 10.0.3.0/24 masquerade
-
-# table: nat
-# chains: prerouting, output
-# maps: tcp2ip, tcp2port
-# rules: tcp dnat
-nft add map ip nat tcp2ip { type inet_service : ipv4_addr \; }
-nft add map ip nat tcp2port { type inet_service : inet_service \; }
-[[ -z "$(nft list chain ip nat prerouting | grep 'tcp dport map @tcp2ip:tcp dport map @tcp2port')" ]] && \
-nft add rule ip nat prerouting iif $(awk '$2 == "00000000" { print $1 }' /proc/net/route) dnat tcp dport map @tcp2ip:tcp dport map @tcp2port
-[[ -z "$(nft list chain ip nat output | grep 'tcp dport map @tcp2ip:tcp dport map @tcp2port')" ]] && \
-nft add rule ip nat output oif lo dnat tcp dport map @tcp2ip:tcp dport map @tcp2port
-
-# table: nat
-# chains: prerouting, output
-# maps: udp2ip, udp2port
-# rules: udp dnat
-nft add map ip nat udp2ip { type inet_service : ipv4_addr \; }
-nft add map ip nat udp2port { type inet_service : inet_service \; }
-[[ -z "$(nft list chain ip nat prerouting | grep 'udp dport map @udp2ip:udp dport map @udp2port')" ]] && \
-nft add rule ip nat prerouting iif $(awk '$2 == "00000000" { print $1 }' /proc/net/route) dnat udp dport map @udp2ip:udp dport map @udp2port
-[[ -z "$(nft list chain ip nat output | grep 'udp dport map @udp2ip:udp dport map @udp2port')" ]] && \
-nft add rule ip nat output oif lo dnat udp dport map @udp2ip:udp dport map @udp2port
-NFT_COMMON_FILE
 
 # Ağ yapılandırması sonrası hizmetlerin yeniden başlatılması
 systemctl enable lxc-net.service
