@@ -332,6 +332,17 @@ then
 	nft delete table inet filter 2>/dev/null || true
 	nft delete table ip nat 2>/dev/null || true
 	nft delete table ip6 nat 2>/dev/null || true
+
+	iptables -F 2>/dev/null || true
+	iptables -X 2>/dev/null || true
+	iptables -t nat -F 2>/dev/null || true
+	iptables -t nat -X 2>/dev/null || true
+
+	ip6tables -F 2>/dev/null || true
+	ip6tables -X 2>/dev/null || true
+	ip6tables -t nat -F 2>/dev/null || true
+	ip6tables -t nat -X 2>/dev/null || true
+
 	exit 0
 fi
 
