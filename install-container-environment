@@ -97,6 +97,10 @@ if [ -f ~/.bash_functions ]; then
     . ~/.bash_functions
 fi
 
+if [ -f ~/.bash_variables ]; then
+    . ~/.bash_variables
+fi
+
 # If FZF is installed
 if [ -f /usr/share/doc/fzf/examples/key-bindings.bash ]; then
     . /usr/share/doc/fzf/examples/key-bindings.bash
@@ -701,6 +705,10 @@ fi
 
 if [ -f ~/.bash_functions ]; then
     . ~/.bash_functions
+fi
+
+if [ -f ~/.bash_variables ]; then
+    . ~/.bash_variables
 fi
 
 # If FZF is installed
