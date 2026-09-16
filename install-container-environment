@@ -10,7 +10,6 @@ umask 0022
 DEBIAN_FRONTEND="noninteractive"
 LXC_DIR="/var/lib/lxc"
 PRODUCT_NAME="template-deb13"
-LXC_IP="10.0.3.200"
 
 PUBLISH_CERT="/usr/local/sbin/publish-cert"
 SET_LXC_NETWORK_RULES="/usr/local/sbin/set-lxc-network-rules"
@@ -262,7 +261,7 @@ LXC_BRIDGE_MAC="00:16:3e:00:00:00"
 LXC_ADDR="10.0.3.1"
 LXC_NETMASK="255.255.255.0"
 LXC_NETWORK="10.0.3.0/24"
-LXC_DHCP_RANGE="10.0.3.200,10.0.3.254"
+LXC_DHCP_RANGE="10.0.3.100,10.0.3.254"
 LXC_DHCP_MAX="253"
 LXC_DHCP_CONFILE=""
 LXC_DHCP_PING="true"
@@ -624,11 +623,11 @@ auto lo
 iface lo inet loopback
 
 auto ${LXC_IFACE}
-iface ${LXC_IFACE} inet static
-	address ${LXC_IP}/24
-	gateway 10.0.3.1
-	dns-nameservers $(awk '/^nameserver/ { print $2 }' "/etc/resolv.conf" | tr "\n" " ")
+iface ${LXC_IFACE} inet dhcp
 NETWORK_CONFIG
+
+rm -rf "${LXC_DIR}/${PRODUCT_NAME,,}/rootfs/etc/resolf.conf"
+echo "nameserver 10.0.3.1" > "${LXC_DIR}/${PRODUCT_NAME,,}/rootfs/etc/resolf.conf"
 
 # Ana makine üzerindeki sertifikanın, kapsayıcıda da aynı dizinden erişlebilmesi için dizin bağlandı.
 mkdir -p "/usr/local/share/certificates"
