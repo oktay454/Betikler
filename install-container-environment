@@ -745,7 +745,7 @@ apt-get update
 apt-get install -y \
 	bash-completion openssh-server fzf autojump \
 	file tree htop vim tmux wget curl coreutils locales \
-	moreutils apt-transport-https gnupg gawk \
+	moreutils apt-transport-https gnupg gawk e2fsprogs \
 	debconf-utils bind9-dnsutils iputils-ping \
 	unattended-upgrades needrestart netcat-openbsd
 
@@ -857,8 +857,13 @@ fi
 MOTD_TMUX_LIST
 chmod +x "/etc/update-motd.d/30-tmux-list"
 
+if [ -f "/etc/motd" ] && [ ! -L "/etc/motd" ]
+then
+	chattr -i "/etc/motd"
+fi
 rm -f "/etc/motd"
 touch "/etc/motd"
+chattr +i "/etc/motd"
 
 ##########################################################################################
 # SSH yapılandırması
@@ -929,5 +934,3 @@ printf 'Europe/Istanbul\n' > /etc/timezone
 # Bash geçmisini temizleme
 rm -f ~/.bash_history
 RUN_IN_CONTAINER
-
-chattr +i "${LXC_DIR}/${PRODUCT_NAME,,}/rootfs/etc/motd"
