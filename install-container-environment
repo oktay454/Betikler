@@ -288,7 +288,7 @@ cache-size=0
 # Örnek DNS kaydı
 #address=/example.com/10.0.3.200
 DNSMASQ
-if
+fi
 
 cat > "/etc/sysctl.d/40-network-optimization.conf" << \NETWORK_OPTIMIZATION
 # TCP ve UDP tampon bellek
@@ -314,7 +314,7 @@ sysctl -p "/etc/sysctl.d/40-network-optimization.conf"
 
 # Ağ kuralları /etc/lxc/network-rules.conf dosyasına eklenir.
 # Daha kolay yönetebilirlik sağlamak için böyle bir yöntem tercih edildi.
-cat > "${SET_NFT_RULES}" << \SET_LXC_NETWORK_RULES
+cat > "${SET_LXC_NETWORK_RULES}" << \SET_LXC_NETWORK_RULES
 #!/bin/bash
 
 sleep 2
