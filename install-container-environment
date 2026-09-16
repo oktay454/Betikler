@@ -7,7 +7,16 @@ umask 0022
 # Temel Değişkenler
 ##########################################################################################
 # shellcheck disable=SC2034
-DEBIAN_FRONTEND="noninteractive"
+export DEBIAN_FRONTEND="noninteractive"
+export LANG="C.UTF-8"
+export LC_ALL="C.UTF-8"
+
+if [ "${EUID}" -ne 0 ]
+then
+	printf 'Bu betik root olarak çalıştırılmalıdır.\n' >&2
+	exit 1
+fi
+
 LXC_DIR="/var/lib/lxc"
 PRODUCT_NAME="template-deb13"
 
@@ -16,12 +25,48 @@ SET_LXC_NETWORK_RULES="/usr/local/sbin/set-lxc-network-rules"
 NETWORK_RULES="/etc/lxc/network-rules.conf"
 
 ##########################################################################################
+# Depoları yeniden oluşturma, temel sistem araçları ve gerekli paketlerin kurulumu
+##########################################################################################
+rm -f "/etc/apt/sources.list"
+cat > "/etc/apt/sources.list.d/debian.sources" << \SOURCES_LIST
+Types: deb deb-src
+URIs: http://deb.debian.org/debian/
+Suites: trixie
+Components: main contrib non-free non-free-firmware
+Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
+
+Types: deb deb-src
+URIs: http://security.debian.org/debian-security/
+Suites: trixie-security
+Components: main contrib non-free non-free-firmware
+Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
+
+Types: deb deb-src
+URIs: http://deb.debian.org/debian/
+Suites: trixie-updates
+Components: main contrib non-free non-free-firmware
+Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
+SOURCES_LIST
+cat > "/etc/apt/apt.conf.d/20keepconfig.conf" <<\APT_KEEP_CONFIG
+Dpkg::Options {
+	"--force-confdef";
+	"--force-confold";
+}
+APT_KEEP_CONFIG
+
+apt-get purge -y --auto-remove apt-listchanges ufw iptables
+apt-get update
+apt-get install -y \
+	bash-completion openssh-server fzf autojump \
+	file tree htop vim tmux wget curl coreutils locales \
+	moreutils apt-transport-https gnupg certbot e2fsprogs \
+	debconf-utils bind9-dnsutils lxc lxc-templates nftables gawk \
+	unattended-upgrades needrestart netcat-openbsd
+
+##########################################################################################
 # Sistemin dili yapılandırıyor
 ##########################################################################################
 cat > "/etc/default/locale" << DEFAULT_LOCALE
-LANGUAGE=en_US.UTF-8
-LC_ALL=en_US.UTF-8
-LC_CTYPE=en_US.UTF-8
 LANG=en_US.UTF-8
 DEFAULT_LOCALE
 
@@ -31,45 +76,6 @@ tr_TR.UTF-8 UTF-8
 LOCALE
 locale-gen
 update-locale "LANG=en_US.UTF-8"
-
-##########################################################################################
-# Depoları yeniden oluşturma, temel sistem araçları ve gerekli paketlerin kurulumu
-##########################################################################################
-rm -rf "/etc/apt/sources.list" || true
-cat > "/etc/apt/sources.list.d/debian.sources" << \SOURCES_LIST
-Types: deb deb-src
-URIs: http://deb.debian.org/debian/
-Suites: trixie
-Components: main contrib non-free non-free-firmware 
-Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
-
-Types: deb deb-src
-URIs: http://security.debian.org/debian-security/
-Suites: trixie-security
-Components: main contrib non-free non-free-firmware 
-Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
-
-Types: deb deb-src
-URIs: http://deb.debian.org/debian/
-Suites: trixie-updates
-Components: main contrib non-free non-free-firmware 
-Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
-SOURCES_LIST
-apt purge -y --auto-remove apt-listchanges ufw iptables
-apt update
-apt install -y \
-	bash-completion openssh-server fzf autojump \
-	file tree htop vim tmux wget curl coreutils locales \
-	moreutils apt-transport-https gnupg certbot \
-	debconf-utils bind9-dnsutils lxc lxc-templates nftables gawk \
-	unattended-upgrades needrestart netcat-openbsd
-
-cat > "/etc/apt/apt.conf.d/20keepconfig.conf" <<\APT_KEEP_CONFIG
-Dpkg::Options {
-	"--force-confdef";
-	"--force-confold";
-}
-APT_KEEP_CONFIG
 
 ##########################################################################################
 # NeedRestart için otomatik yeniden başlatma
@@ -88,7 +94,7 @@ set noswapfile
 set ignorecase
 set smartcase
 if has("mouse")
-  set mouse=r
+	set mouse=r
 endif
 VIM_CONFIG
 
@@ -102,34 +108,40 @@ export PS1="\[\033[38;5;11m\]\u\[\033[38;5;9m\]@\h:\[\033[38;5;118m\][\$?]\[\033
 # You may want to put all your additions into a separate file like
 # ~/.bash_aliases, instead of adding them here directly.
 # See /usr/share/doc/bash-doc/examples in the bash-doc package.
-
-if [ -f ~/.bash_aliases ]; then
-    . ~/.bash_aliases
+if [ -f ~/.bash_aliases ]
+then
+	. ~/.bash_aliases
 fi
 
-if [ -f ~/.bash_functions ]; then
-    . ~/.bash_functions
+if [ -f ~/.bash_functions ]
+then
+	. ~/.bash_functions
 fi
 
-if [ -f ~/.bash_variables ]; then
-    . ~/.bash_variables
+if [ -f ~/.bash_variables ]
+then
+	. ~/.bash_variables
 fi
 
 # If FZF is installed
-if [ -f /usr/share/doc/fzf/examples/key-bindings.bash ]; then
-    . /usr/share/doc/fzf/examples/key-bindings.bash
+if [ -f /usr/share/doc/fzf/examples/key-bindings.bash ]
+then
+	. /usr/share/doc/fzf/examples/key-bindings.bash
 fi
 
 # colored GCC warnings and errors
 export GCC_COLORS='error=01;31:warning=01;35:note=01;36:caret=01;32:locus=01:quote=01'
 
 # For Bash completion to work
-if ! shopt -oq posix; then
-  if [ -f /usr/share/bash-completion/bash_completion ]; then
-    . /usr/share/bash-completion/bash_completion
-  elif [ -f /etc/bash_completion ]; then
-    . /etc/bash_completion
-  fi
+if ! shopt -oq posix
+then
+	if [ -f /usr/share/bash-completion/bash_completion ]
+	then
+		. /usr/share/bash-completion/bash_completion
+	elif [ -f /etc/bash_completion ]
+	then
+		. /etc/bash_completion
+	fi
 fi
 
 # append to the history file, don't overwrite it
@@ -145,7 +157,7 @@ export HISTFILESIZE=-1
 
 export PROMPT_COMMAND="history -a;$PROMPT_COMMAND"
 export LS_OPTIONS='--color=auto'
-eval "`dircolors`"
+eval "$(dircolors)"
 
 # Aliases
 alias ls='ls $LS_OPTIONS'
@@ -185,8 +197,11 @@ fi
 MOTD_TMUX_LIST
 chmod +x "/etc/update-motd.d/30-tmux-list"
 
-chattr -i "/etc/motd"
-rm "/etc/motd"
+if [ -f "/etc/motd" ] && [ ! -L "/etc/motd" ]
+then
+	chattr -i "/etc/motd"
+fi
+rm -f "/etc/motd"
 touch "/etc/motd"
 chattr +i "/etc/motd"
 
@@ -194,7 +209,15 @@ chattr +i "/etc/motd"
 # SSH yapılandırması
 ##########################################################################################
 install -dm0700 ~/.ssh
-wget "https://oktayaktogan.com.tr/ssh-keys.pub" -O ~/.ssh/authorized_keys
+SSH_KEYS_TEMP="$(mktemp /root/.ssh/authorized_keys.XXXXXX)"
+if ! wget "https://oktayaktogan.com.tr/ssh-keys.pub" -O "${SSH_KEYS_TEMP}" || [ ! -s "${SSH_KEYS_TEMP}" ]
+then
+	rm -f "${SSH_KEYS_TEMP}"
+	printf 'SSH anahtarları indirilemedi.\n' >&2
+	exit 1
+fi
+chmod 0600 "${SSH_KEYS_TEMP}"
+mv -f "${SSH_KEYS_TEMP}" /root/.ssh/authorized_keys
 cat > "/etc/ssh/sshd_config.d/99-common.conf" << SSH_CONFIG
 PermitRootLogin prohibit-password
 PubkeyAuthentication yes
@@ -203,13 +226,14 @@ PermitEmptyPasswords no
 PrintMotd yes
 PrintLastLog no
 SSH_CONFIG
+sshd -t
 systemctl restart ssh.service
 
 ##########################################################################################
 # JournalD yapılandırması
 ##########################################################################################
 mkdir -p "/etc/systemd/journald.conf.d"
-cat >> "/etc/systemd/journald.conf.d/99-delete-after-one-week.conf" <<JOURNALD
+cat > "/etc/systemd/journald.conf.d/99-delete-after-one-week.conf" <<JOURNALD
 [Journal]
 MaxRetentionSec=1week
 MaxFileSec=1week
@@ -222,21 +246,19 @@ JOURNALD
 cat > "${PUBLISH_CERT}" << \PUBLISH_CERT
 #!/bin/bash
 
+set -e
+
 LE_LIVE_DIR="/etc/letsencrypt/live"
 CERTS_DIR="/usr/local/share/certificates"
-DIRS="$(find ${LE_LIVE_DIR} -mindepth 1 -maxdepth 1 -type d)"
-FQDNS="$(awk -F "/" '{ print $NF }' <<< "${DIRS}")"
 
-for FQDN in ${FQDNS}
+for CERT_DIR in "${LE_LIVE_DIR}"/*
 do
-	FULLCHAIN="$(realpath "${LE_LIVE_DIR}/${FQDN}/fullchain.pem")"
-	PRIVKEY="$(realpath "${LE_LIVE_DIR}/${FQDN}/privkey.pem")"
-	if ! [ -f "${FULLCHAIN}" ] || ! [ -f "${PRIVKEY}" ]
-	then
-		continue
-	fi
-	install -Dm0444 "${FULLCHAIN}" "${CERTS_DIR}/${FQDN}/fullchain.pem"
-	install -Dm0444 "${PRIVKEY}" "${CERTS_DIR}/${FQDN}/privkey.pem"
+	[ -d "${CERT_DIR}" ] || continue
+	[ -f "${CERT_DIR}/fullchain.pem" ] || continue
+	[ -f "${CERT_DIR}/privkey.pem" ] || continue
+	FQDN="${CERT_DIR##*/}"
+	install -Dm0444 "${CERT_DIR}/fullchain.pem" "${CERTS_DIR}/${FQDN}/fullchain.pem"
+	install -Dm0600 "${CERT_DIR}/privkey.pem" "${CERTS_DIR}/${FQDN}/privkey.pem"
 done
 PUBLISH_CERT
 chmod +x "${PUBLISH_CERT}"
@@ -293,8 +315,8 @@ cat > "/etc/sysctl.d/40-network-optimization.conf" << \NETWORK_OPTIMIZATION
 # TCP ve UDP tampon bellek
 net.core.rmem_max = 16777216
 net.core.wmem_max = 16777216
-net.ipv4.tcp_rmem= 10240 87380 16777216
-net.ipv4.tcp_wmem= 10240 87380 16777216
+net.ipv4.tcp_rmem = 10240 87380 16777216
+net.ipv4.tcp_wmem = 10240 87380 16777216
 net.ipv4.tcp_window_scaling = 1
 net.ipv4.tcp_timestamps = 1
 net.ipv4.tcp_sack = 1
@@ -302,7 +324,7 @@ net.ipv4.tcp_no_metrics_save = 1
 net.ipv4.udp_mem = 90651 120871 16777216
 
 # Çekirdeğin işleyebileceği paket sayısı
-net.core.netdev_max_backlog=16384
+net.core.netdev_max_backlog = 16384
 
 # ARP tablosu taşmasını önleme
 net.ipv4.neigh.default.gc_thresh1 = 1024
@@ -315,6 +337,7 @@ sysctl -p "/etc/sysctl.d/40-network-optimization.conf"
 # Daha kolay yönetebilirlik sağlamak için böyle bir yöntem tercih edildi.
 cat > "${SET_LXC_NETWORK_RULES}" << \SET_LXC_NETWORK_RULES
 #!/bin/bash
+set -e
 
 sleep 2
 LXC_NET_DEFAULT_FILE="/etc/default/lxc-net"
@@ -322,7 +345,7 @@ NETWORK_RULES="/etc/lxc/network-rules.conf"
 
 if [ -f "${LXC_NET_DEFAULT_FILE}" ] && [ -r "${LXC_NET_DEFAULT_FILE}" ]
 then
-	source "${LXC_NET_DEFAULT_FILE}" || true
+	source "${LXC_NET_DEFAULT_FILE}"
 fi
 
 [ -z "${USE_LXC_BRIDGE}" ] && USE_LXC_BRIDGE="true"
@@ -366,19 +389,24 @@ then
 fi
 
 # WAN portu ve IP adresi tesbit edilir.
-[ -z "${WAN_IF}" ] && WAN_IF="$(awk '$2 == "00000000" { print $1 }' "/proc/net/route")"
+[ -z "${WAN_IF}" ] && WAN_IF="$(ip -4 route show default | awk '{ for (I = 1; I < NF; I++) if ($I == "dev") { print $(I + 1); exit } }')"
+if [ -z "${WAN_IF}" ]
+then
+	printf 'Varsayılan ağ arayüzü bulunamadı.\n' >&2
+	exit 1
+fi
 [ -z "${WAN_IP}" ] && WAN_IP="$(ip -4 addr show "${WAN_IF}" | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | grep -v ^127 | head -n 1)"
-[ -z "${WAN_IP}" ] && WAN_IP6="$(ip -6 addr show "${WAN_IF}" | grep "scope global" | grep -oP '(?<=inet6\s)[a-fA-F0-9:]+' | head -n 1)"
-
+[ -z "${WAN_IP6}" ] && WAN_IP6="$(ip -6 addr show "${WAN_IF}" | grep "scope global" | grep -oP '(?<=inet6\s)[a-fA-F0-9:]+' | head -n 1)"
 
 if [ "${LXC_USE_NFT}" == "true" ]
 then
 	# IPv4 Yönlendirme İşlevi
-	function AddPortForward() {
-		local PROTO=$1
-		local PORT=$2
-		local TARGET_IP=$3
-		local TARGET_PORT=${4:-$PORT}
+	function AddPortForward()
+	{
+		local PROTO="${1}"
+		local PORT="${2}"
+		local TARGET_IP="${3}"
+		local TARGET_PORT="${4:-${PORT}}"
 
 		nft add rule ip nat prerouting iif "${WAN_IF}" "${PROTO}" dport "${PORT}" dnat to "${TARGET_IP}:${TARGET_PORT}"
 		nft add rule ip nat prerouting iif "${LXC_BRIDGE}" ip daddr "${WAN_IP}" "${PROTO}" dport "${PORT}" dnat to "${TARGET_IP}:${TARGET_PORT}"
@@ -386,17 +414,19 @@ then
 	}
 
 	# IPv6 Yönlendirme İşlevi
-	function AddPortForward6() {
-		local PROTO=$1
-		local PORT=$2
-		local TARGET_IP6=$3
-		local TARGET_PORT=${4:-$PORT}
+	function AddPortForward6()
+	{
+		local PROTO="${1}"
+		local PORT="${2}"
+		local TARGET_IP6="${3}"
+		local TARGET_PORT="${4:-${PORT}}"
 
 		# Dış ağdan (WAN) gelen yönlendirmeler
 		nft add rule ip6 nat prerouting iif "${WAN_IF}" "${PROTO}" dport "${PORT}" dnat to "[${TARGET_IP6}]:${TARGET_PORT}"
 
 		# İç ağdan (LXC) dış IP'ye gelen yönlendirmeler (Sadece WAN_IP6 tanımlıysa çalışır)
-		if [ -n "${WAN_IP6}" ]; then
+		if [ -n "${WAN_IP6}" ]
+		then
 			nft add rule ip6 nat prerouting iif "${LXC_BRIDGE}" ip6 daddr "${WAN_IP6}" "${PROTO}" dport "${PORT}" dnat to "[${TARGET_IP6}]:${TARGET_PORT}"
 		fi
 
@@ -413,12 +443,13 @@ then
 
 	# table: filter (Hem IPv4 hem IPv6 için geçerlidir)
 	nft add table inet filter
-	nft add chain inet filter input { type filter hook input priority 0\; policy drop\; }
-	nft add chain inet filter forward { type filter hook forward priority 0\; policy drop\; }
-	nft add chain inet filter output { type filter hook output priority 0\; policy accept\; }
+	nft add chain inet filter input '{ type filter hook input priority 0; policy drop; }'
+	nft add chain inet filter forward '{ type filter hook forward priority 0; policy drop; }'
+	nft add chain inet filter output '{ type filter hook output priority 0; policy accept; }'
 
 	nft add rule inet filter input ct state related,established counter accept
 	nft add rule inet filter input meta l4proto icmp icmp type echo-request accept
+	nft add rule inet filter input meta l4proto ipv6-icmp accept
 	nft add rule inet filter input tcp dport 22 counter accept
 	nft add rule inet filter input iifname "lo" accept
 	nft add rule inet filter input iifname "${LXC_BRIDGE}" accept
@@ -426,33 +457,35 @@ then
 	nft add rule inet filter forward ct state established,related accept
 	nft add rule inet filter forward iifname "${LXC_BRIDGE}" oifname "${WAN_IF}" accept
 	nft add rule inet filter forward ct status dnat accept
-	nft add rule inet filter output iif "${WAN_IF}" ip daddr "${LXC_NETWORK}" drop
+	nft add rule inet filter output oif "${WAN_IF}" ip daddr "${LXC_NETWORK}" drop
 
 	# table: nat (Sadece IPv4 için)
 	nft add table ip nat
-	nft add chain ip nat prerouting { type nat hook prerouting priority 0 \; }
-	nft add chain ip nat postrouting { type nat hook postrouting priority 100 \; }
-	nft add chain ip nat output { type nat hook output priority 0 \; }
-	nft add chain ip nat input { type nat hook input priority 0 \; }
+	nft add chain ip nat prerouting '{ type nat hook prerouting priority 0 ; }'
+	nft add chain ip nat postrouting '{ type nat hook postrouting priority 100 ; }'
+	nft add chain ip nat output '{ type nat hook output priority 0 ; }'
+	nft add chain ip nat input '{ type nat hook input priority 0 ; }'
 	nft add rule ip nat postrouting ip saddr "${LXC_NETWORK}" masquerade
 
 	# table: nat6 (Sadece IPv6 için)
-	if [ "${LXC_IPV6_NAT}" = "true" ]; then
+	if [ "${LXC_IPV6_ENABLE}" = "true" ] && [ "${LXC_IPV6_NAT}" = "true" ]
+	then
 		nft add table ip6 nat
-		nft add chain ip6 nat prerouting { type nat hook prerouting priority 0 \; }
-		nft add chain ip6 nat postrouting { type nat hook postrouting priority 100 \; }
-		nft add chain ip6 nat output { type nat hook output priority 0 \; }
-		nft add chain ip6 nat input { type nat hook input priority 0 \; }
+		nft add chain ip6 nat prerouting '{ type nat hook prerouting priority 0 ; }'
+		nft add chain ip6 nat postrouting '{ type nat hook postrouting priority 100 ; }'
+		nft add chain ip6 nat output '{ type nat hook output priority 0 ; }'
+		nft add chain ip6 nat input '{ type nat hook input priority 0 ; }'
 
 		nft add rule ip6 nat postrouting ip6 saddr "${LXC_IPV6_NETWORK}" masquerade
 	fi
 	##########################################################################################
 else
-	AddPortForward() {
-		local PROTO=$1
-		local PORT=$2
-		local TARGET_IP=$3
-		local TARGET_PORT=${4:-$PORT}
+	function AddPortForward()
+	{
+		local PROTO="${1}"
+		local PORT="${2}"
+		local TARGET_IP="${3}"
+		local TARGET_PORT="${4:-${PORT}}"
 
 		# Dış ağdan (WAN) ve iç ağdan (LXC) dış IP'ye gelen yönlendirmeler
 		iptables -t nat -A PREROUTING -d "${WAN_IP}" -p "${PROTO}" --dport "${PORT}" -j DNAT --to-destination "${TARGET_IP}:${TARGET_PORT}"
@@ -462,14 +495,16 @@ else
 	}
 
 	# IPv6 Yönlendirme İşlevi (Function)
-	AddPortForward6() {
-		local PROTO=$1
-		local PORT=$2
-		local TARGET_IP6=$3
-		local TARGET_PORT=${4:-$PORT}
+	function AddPortForward6()
+	{
+		local PROTO="${1}"
+		local PORT="${2}"
+		local TARGET_IP6="${3}"
+		local TARGET_PORT="${4:-${PORT}}"
 
 		# Eğer WAN_IP6 tanımlıysa net IP üzerinden yönlendir
-		if [ -n "${WAN_IP6}" ]; then
+		if [ -n "${WAN_IP6}" ]
+		then
 			ip6tables -t nat -A PREROUTING -d "${WAN_IP6}" -p "${PROTO}" --dport "${PORT}" -j DNAT --to-destination "[${TARGET_IP6}]:${TARGET_PORT}"
 			ip6tables -t nat -A OUTPUT -d "${WAN_IP6}" -p "${PROTO}" --dport "${PORT}" -j DNAT --to-destination "[${TARGET_IP6}]:${TARGET_PORT}"
 		else
@@ -513,7 +548,8 @@ else
 	ip6tables -t nat -F 2>/dev/null || true
 	ip6tables -t nat -X 2>/dev/null || true
 
-	if [ "${LXC_IPV6_ENABLE}" = "true" ]; then
+	if [ "${LXC_IPV6_ENABLE}" = "true" ]
+	then
 		ip6tables -P INPUT DROP
 		ip6tables -P FORWARD DROP
 		ip6tables -P OUTPUT ACCEPT
@@ -533,8 +569,10 @@ else
 	fi
 
 	# IPv6 NAT Tablosu (Sadece LXC_IPV6_NAT true ise)
-	if [ "${LXC_IPV6_NAT}" = "true" ]; then
-		if [ -n "${WAN_IP6}" ]; then
+	if [ "${LXC_IPV6_ENABLE}" = "true" ] && [ "${LXC_IPV6_NAT}" = "true" ]
+	then
+		if [ -n "${WAN_IP6}" ]
+		then
 			ip6tables -t nat -A POSTROUTING -s "${LXC_IPV6_NETWORK}" ! -o "${LXC_BRIDGE}" -j SNAT --to-source "${WAN_IP6}"
 		else
 			# Açık bir IPv6 adresi yoksa otomatik maskeleme yap
@@ -544,10 +582,9 @@ else
 
 fi
 
-
 if [ -f "${NETWORK_RULES}" ] && [ -r "${NETWORK_RULES}" ]
 then
-	source "${NETWORK_RULES}" || true
+	source "${NETWORK_RULES}"
 fi
 SET_LXC_NETWORK_RULES
 chmod +x "${SET_LXC_NETWORK_RULES}"
@@ -596,7 +633,16 @@ systemctl restart lxc-net.service
 # Öntanımlı hâle getirilen kullanıcı tanımları
 ##########################################################################################
 # Bu özellikle www-data gibi ortak bir ftp kullanıcısı olması için öntanımlı yapıldı.
-useradd -mr -u 221 -g 33 -s /sbin/nologin -d /srv/ftp -c "ftp" ftp || true
+if getent passwd ftp > /dev/null
+then
+	if [ "$(id -u ftp)" != "221" ] || [ "$(id -g ftp)" != "33" ]
+	then
+		printf 'ftp kullanıcısının UID/GID değerleri 221:33 olmalıdır.\n' >&2
+		exit 1
+	fi
+else
+	useradd -mr -u 221 -g 33 -s /sbin/nologin -d /srv/ftp -c "ftp" ftp
+fi
 
 ##########################################################################################
 # Kapsayıcının kurulum aşamaları
@@ -604,20 +650,29 @@ useradd -mr -u 221 -g 33 -s /sbin/nologin -d /srv/ftp -c "ftp" ftp || true
 # Eğer mevcut bir kapsayıcı varsa kaldırılır.
 if lxc-info -n "${PRODUCT_NAME,,}" > /dev/null 2>&1
 then
-	lxc-stop -n "${PRODUCT_NAME,,}" || true
-	until lxc-info -s -n "${PRODUCT_NAME,,}" | grep -q STOPPED
-	do
-		echo "Kapsayıcının kapanması bekleniyor: ${PRODUCT_NAME,,}"
-		sleep 1
-	done
+	if [ "$(lxc-info -sH -n "${PRODUCT_NAME,,}")" != "STOPPED" ]
+	then
+		lxc-stop -n "${PRODUCT_NAME,,}" -t 60
+	fi
+	lxc-wait -n "${PRODUCT_NAME,,}" -s STOPPED -t 60
+	CONTAINER_MOTD="${LXC_DIR}/${PRODUCT_NAME,,}/rootfs/etc/motd"
+	if [ -f "${CONTAINER_MOTD}" ] && [ ! -L "${CONTAINER_MOTD}" ]
+	then
+		chattr -i "${CONTAINER_MOTD}"
+	fi
 	lxc-destroy -n "${PRODUCT_NAME,,}"
 fi
 
 # Kapsayıcı(container) oluşturma
-lxc-create "${PRODUCT_NAME,,}" -t debian -- -r trixie --flush-cache
+lxc-create -n "${PRODUCT_NAME,,}" -t debian -- -r trixie --flush-cache
 
 # Kapsayıcı ağ yapılandırması
-LXC_IFACE="$(grep "auto" "${LXC_DIR}/${PRODUCT_NAME,,}/rootfs/etc/network/interfaces" | awk '!/lo/ { print $2 }')"
+LXC_IFACE="$(awk '$1 == "iface" && $2 != "lo" && $3 == "inet" { print $2; exit }' "${LXC_DIR}/${PRODUCT_NAME,,}/rootfs/etc/network/interfaces")"
+if [ -z "${LXC_IFACE}" ]
+then
+	printf 'Kapsayıcının ağ arayüzü bulunamadı.\n' >&2
+	exit 1
+fi
 cat > "${LXC_DIR}/${PRODUCT_NAME,,}/rootfs/etc/network/interfaces" << NETWORK_CONFIG
 auto lo
 iface lo inet loopback
@@ -626,27 +681,25 @@ auto ${LXC_IFACE}
 iface ${LXC_IFACE} inet dhcp
 NETWORK_CONFIG
 
-rm -rf "${LXC_DIR}/${PRODUCT_NAME,,}/rootfs/etc/resolf.conf"
-echo "nameserver 10.0.3.1" > "${LXC_DIR}/${PRODUCT_NAME,,}/rootfs/etc/resolf.conf"
+rm -f "${LXC_DIR}/${PRODUCT_NAME,,}/rootfs/etc/resolv.conf"
+echo "nameserver 10.0.3.1" > "${LXC_DIR}/${PRODUCT_NAME,,}/rootfs/etc/resolv.conf"
 
 # Ana makine üzerindeki sertifikanın, kapsayıcıda da aynı dizinden erişlebilmesi için dizin bağlandı.
 mkdir -p "/usr/local/share/certificates"
-echo "lxc.mount.entry = /usr/local/share/certificates usr/local/share/certificates none bind,create=dir 0 0" >> "${LXC_DIR}/${PRODUCT_NAME,,}/config"
+echo "lxc.mount.entry = /usr/local/share/certificates usr/local/share/certificates none bind,ro,create=dir 0 0" >> "${LXC_DIR}/${PRODUCT_NAME,,}/config"
 
 lxc-start -n "${PRODUCT_NAME,,}"
-until lxc-info -s -n "${PRODUCT_NAME,,}" | grep -q RUNNING
-do
-	echo "Kapsayıcının açılması bekleniyor: ${PRODUCT_NAME,,}"
-	sleep 1
-done
+lxc-wait -n "${PRODUCT_NAME,,}" -s RUNNING -t 60
 
 # Kapsayıcı içerisindeki yapılacaklar
-lxc-attach -n "${PRODUCT_NAME,,}" -- << \RUN_IN_CONTAINER
+lxc-attach -n "${PRODUCT_NAME,,}" --clear-env \
+	--set-var "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
+	--set-var "LANG=C.UTF-8" --set-var "LC_ALL=C.UTF-8" \
+	--set-var "DEBIAN_FRONTEND=noninteractive" \
+	-- /bin/bash -e -s << \RUN_IN_CONTAINER
+umask 0022
 # Sistemin dili yapılandırıyor
 cat > "/etc/default/locale" << DEFAULT_LOCALE
-LANGUAGE=en_US.UTF-8
-LC_ALL=en_US.UTF-8
-LC_CTYPE=en_US.UTF-8
 LANG=en_US.UTF-8
 DEFAULT_LOCALE
 
@@ -658,36 +711,26 @@ locale-gen
 update-locale "LANG=en_US.UTF-8"
 
 # Depoları yeniden oluşturuluyor
-rm -rf "/etc/apt/sources.list" || true
+rm -f "/etc/apt/sources.list"
 cat > "/etc/apt/sources.list.d/debian.sources" << \SOURCES_LIST
 Types: deb deb-src
 URIs: http://deb.debian.org/debian/
 Suites: trixie
-Components: main contrib non-free non-free-firmware 
+Components: main contrib non-free non-free-firmware
 Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
 
 Types: deb deb-src
 URIs: http://security.debian.org/debian-security/
 Suites: trixie-security
-Components: main contrib non-free non-free-firmware 
+Components: main contrib non-free non-free-firmware
 Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
 
 Types: deb deb-src
 URIs: http://deb.debian.org/debian/
 Suites: trixie-updates
-Components: main contrib non-free non-free-firmware 
+Components: main contrib non-free non-free-firmware
 Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
 SOURCES_LIST
-
-# Temel sistem araçları ve gerekli paketlerin kurulumu
-apt purge -y --auto-remove apt-listchanges
-apt update
-apt install -y \
-	bash-completion openssh-server fzf autojump \
-	file tree htop vim tmux wget curl coreutils locales \
-	moreutils apt-transport-https gnupg gawk \
-	debconf-utils bind9-dnsutils iputils-ping \
-	unattended-upgrades needrestart netcat-openbsd
 
 cat > "/etc/apt/apt.conf.d/20keepconfig.conf" <<\APT_KEEP_CONFIG
 Dpkg::Options {
@@ -695,6 +738,16 @@ Dpkg::Options {
 	"--force-confold";
 }
 APT_KEEP_CONFIG
+
+# Temel sistem araçları ve gerekli paketlerin kurulumu
+apt-get purge -y --auto-remove apt-listchanges
+apt-get update
+apt-get install -y \
+	bash-completion openssh-server fzf autojump \
+	file tree htop vim tmux wget curl coreutils locales \
+	moreutils apt-transport-https gnupg gawk \
+	debconf-utils bind9-dnsutils iputils-ping \
+	unattended-upgrades needrestart netcat-openbsd
 
 ##########################################################################################
 # NeedRestart için otomatik yeniden başlatma
@@ -713,7 +766,7 @@ set noswapfile
 set ignorecase
 set smartcase
 if has("mouse")
-  set mouse=r
+	set mouse=r
 endif
 VIM_CONFIG
 
@@ -727,34 +780,40 @@ export PS1="\[\033[38;5;11m\]\u\[\033[38;5;9m\]@\h:\[\033[38;5;118m\][\$?]\[\033
 # You may want to put all your additions into a separate file like
 # ~/.bash_aliases, instead of adding them here directly.
 # See /usr/share/doc/bash-doc/examples in the bash-doc package.
-
-if [ -f ~/.bash_aliases ]; then
-    . ~/.bash_aliases
+if [ -f ~/.bash_aliases ]
+then
+	. ~/.bash_aliases
 fi
 
-if [ -f ~/.bash_functions ]; then
-    . ~/.bash_functions
+if [ -f ~/.bash_functions ]
+then
+	. ~/.bash_functions
 fi
 
-if [ -f ~/.bash_variables ]; then
-    . ~/.bash_variables
+if [ -f ~/.bash_variables ]
+then
+	. ~/.bash_variables
 fi
 
 # If FZF is installed
-if [ -f /usr/share/doc/fzf/examples/key-bindings.bash ]; then
-    . /usr/share/doc/fzf/examples/key-bindings.bash
+if [ -f /usr/share/doc/fzf/examples/key-bindings.bash ]
+then
+	. /usr/share/doc/fzf/examples/key-bindings.bash
 fi
 
 # colored GCC warnings and errors
 export GCC_COLORS='error=01;31:warning=01;35:note=01;36:caret=01;32:locus=01:quote=01'
 
 # For Bash completion to work
-if ! shopt -oq posix; then
-  if [ -f /usr/share/bash-completion/bash_completion ]; then
-    . /usr/share/bash-completion/bash_completion
-  elif [ -f /etc/bash_completion ]; then
-    . /etc/bash_completion
-  fi
+if ! shopt -oq posix
+then
+	if [ -f /usr/share/bash-completion/bash_completion ]
+	then
+		. /usr/share/bash-completion/bash_completion
+	elif [ -f /etc/bash_completion ]
+	then
+		. /etc/bash_completion
+	fi
 fi
 
 # append to the history file, don't overwrite it
@@ -770,7 +829,7 @@ export HISTFILESIZE=-1
 
 export PROMPT_COMMAND="history -a;$PROMPT_COMMAND"
 export LS_OPTIONS='--color=auto'
-eval "`dircolors`"
+eval "$(dircolors)"
 
 # Aliases
 alias ls='ls $LS_OPTIONS'
@@ -798,16 +857,22 @@ fi
 MOTD_TMUX_LIST
 chmod +x "/etc/update-motd.d/30-tmux-list"
 
-chattr -i "/etc/motd"
-rm "/etc/motd"
+rm -f "/etc/motd"
 touch "/etc/motd"
-chattr +i "/etc/motd"
 
 ##########################################################################################
 # SSH yapılandırması
 ##########################################################################################
 install -dm0700 ~/.ssh
-wget "https://oktayaktogan.com.tr/ssh-keys.pub" -O ~/.ssh/authorized_keys
+SSH_KEYS_TEMP="$(mktemp /root/.ssh/authorized_keys.XXXXXX)"
+if ! wget "https://oktayaktogan.com.tr/ssh-keys.pub" -O "${SSH_KEYS_TEMP}" || [ ! -s "${SSH_KEYS_TEMP}" ]
+then
+	rm -f "${SSH_KEYS_TEMP}"
+	printf 'SSH anahtarları indirilemedi.\n' >&2
+	exit 1
+fi
+chmod 0600 "${SSH_KEYS_TEMP}"
+mv -f "${SSH_KEYS_TEMP}" /root/.ssh/authorized_keys
 cat > "/etc/ssh/sshd_config.d/99-common.conf" << SSH_CONFIG
 PermitRootLogin prohibit-password
 PubkeyAuthentication yes
@@ -816,13 +881,14 @@ PermitEmptyPasswords no
 PrintMotd yes
 PrintLastLog no
 SSH_CONFIG
+sshd -t
 systemctl restart ssh.service
 
 ##########################################################################################
 # JournalD yapılandırması
 ##########################################################################################
 mkdir -p "/etc/systemd/journald.conf.d"
-cat >> "/etc/systemd/journald.conf.d/99-delete-after-one-week.conf" <<JOURNALD
+cat > "/etc/systemd/journald.conf.d/99-delete-after-one-week.conf" <<JOURNALD
 [Journal]
 MaxRetentionSec=1week
 MaxFileSec=1week
@@ -833,10 +899,8 @@ JOURNALD
 ##########################################################################################
 cat > "/etc/sysctl.d/40-network-optimization.conf" << \NETWORK_OPTIMIZATION
 # TCP ve UDP tampon bellek
-net.core.rmem_max = 16777216
-net.core.wmem_max = 16777216
-net.ipv4.tcp_rmem= 10240 87380 16777216
-net.ipv4.tcp_wmem= 10240 87380 16777216
+net.ipv4.tcp_rmem = 10240 87380 16777216
+net.ipv4.tcp_wmem = 10240 87380 16777216
 net.ipv4.tcp_window_scaling = 1
 net.ipv4.tcp_timestamps = 1
 net.ipv4.tcp_sack = 1
@@ -848,8 +912,22 @@ sysctl -p "/etc/sysctl.d/40-network-optimization.conf"
 # Öntanımlı hâle getirilen kullanıcı tanımları
 ##########################################################################################
 # Bu özellikle www-data gibi ortak bir ftp kullanıcısı olması için öntanımlı yapıldı.
-useradd -mr -u 221 -g 33 -s /sbin/nologin -d /srv/ftp -c "ftp" ftp || true
+if getent passwd ftp > /dev/null
+then
+	if [ "$(id -u ftp)" != "221" ] || [ "$(id -g ftp)" != "33" ]
+	then
+		printf 'ftp kullanıcısının UID/GID değerleri 221:33 olmalıdır.\n' >&2
+		exit 1
+	fi
+else
+	useradd -mr -u 221 -g 33 -s /sbin/nologin -d /srv/ftp -c "ftp" ftp
+fi
+
+ln -snf /usr/share/zoneinfo/Europe/Istanbul /etc/localtime
+printf 'Europe/Istanbul\n' > /etc/timezone
 
 # Bash geçmisini temizleme
 rm -f ~/.bash_history
 RUN_IN_CONTAINER
+
+chattr +i "${LXC_DIR}/${PRODUCT_NAME,,}/rootfs/etc/motd"
