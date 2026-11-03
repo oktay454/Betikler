@@ -61,7 +61,7 @@ apt-get install -y \
 	file tree htop vim tmux wget curl coreutils locales \
 	moreutils apt-transport-https gnupg certbot e2fsprogs \
 	debconf-utils bind9-dnsutils lxc lxc-templates nftables gawk \
-	unattended-upgrades needrestart netcat-openbsd
+	unattended-upgrades needrestart netcat-openbsd ifupdown2
 
 ##########################################################################################
 # Sistemin dili yapılandırıyor
@@ -746,7 +746,7 @@ apt-get install -y \
 	bash-completion openssh-server fzf autojump \
 	file tree htop vim tmux wget curl coreutils locales \
 	moreutils apt-transport-https gnupg gawk e2fsprogs \
-	debconf-utils bind9-dnsutils iputils-ping \
+	debconf-utils bind9-dnsutils iputils-ping ifupdown2 \
 	unattended-upgrades needrestart netcat-openbsd
 
 ##########################################################################################
