@@ -197,6 +197,42 @@ fi
 MOTD_TMUX_LIST
 chmod +x "/etc/update-motd.d/30-tmux-list"
 
+cat > "/etc/update-motd.d/99-info" << \MOTD_INFO
+#!/bin/bash
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+CYAN='\033[0;36m'
+MAGENTA='\033[0;35m'
+RESET='\033[0m'
+
+hostName="$(uname -n)"
+OS="$(grep "PRETTY_NAME=" "/etc/os-release" | cut -d '"' -f 2)"
+kernelVer="$(uname -r)"
+rootPartition="$(findmnt / | awk '/\/dev\// { print $2 }')"
+diskSpace="$(df -Ph "${rootPartition}" | grep "${rootPartition}" | awk '{print $4}' | tr -d '\n')"
+diskRatio="$(df -Ph "${rootPartition}" | grep "${rootPartition}" | awk '{print $5}' | tr -d '\n')"
+memoryUsed="$(free -t -m | awk '/Total/ {print $3" MB";}')"
+memoryRatio="$(free -t -m | awk '/Total/ {print $2" MB";}')"
+uptime_output="$(uptime -p | sed 's/up //')"
+ip="$(hostname -I)"
+
+
+
+echo -e " ${YELLOW}
+==================================================================${RESET}
+
+ - ${MAGENTA}IP..................${RESET}: ${GREEN}$ip${RESET}
+ - ${MAGENTA}OS..................${RESET}: ${GREEN}$OS${RESET}
+ - ${MAGENTA}Hostname............${RESET}: ${GREEN}$hostName${RESET}
+ - ${MAGENTA}Kernel..............${RESET}: ${GREEN}$kernelVer${RESET}
+ - ${MAGENTA}Uptime..............${RESET}: ${GREEN}$uptime_output${RESET}
+ - ${MAGENTA}Disk Space..........${RESET}: ${GREEN}$diskSpace${RESET}, ${GREEN}$diskRatio${RESET}
+ - ${MAGENTA}Memory used.........${RESET}: ${GREEN}$memoryUsed${RESET} / ${GREEN}$memoryRatio${RESET} ${YELLOW}
+
+==================================================================${RESET}
+MOTD_INFO
+chmod +x "/etc/update-motd.d/99-info"
+
 if [ -f "/etc/motd" ] && [ ! -L "/etc/motd" ]
 then
 	chattr -i "/etc/motd"
