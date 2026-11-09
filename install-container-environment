@@ -230,6 +230,7 @@ echo -e " ${YELLOW}
  - ${MAGENTA}Memory used.........${RESET}: ${GREEN}$memoryUsed${RESET} / ${GREEN}$memoryRatio${RESET} ${YELLOW}
 
 ==================================================================${RESET}
+"
 MOTD_INFO
 chmod +x "/etc/update-motd.d/99-info"
 
