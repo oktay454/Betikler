@@ -295,7 +295,7 @@ do
 	[ -f "${CERT_DIR}/privkey.pem" ] || continue
 	FQDN="${CERT_DIR##*/}"
 	install -Dm0444 "${CERT_DIR}/fullchain.pem" "${CERTS_DIR}/${FQDN}/fullchain.pem"
-	install -Dm0600 "${CERT_DIR}/privkey.pem" "${CERTS_DIR}/${FQDN}/privkey.pem"
+	install -Dm0400 "${CERT_DIR}/privkey.pem" "${CERTS_DIR}/${FQDN}/privkey.pem"
 done
 PUBLISH_CERT
 chmod +x "${PUBLISH_CERT}"
