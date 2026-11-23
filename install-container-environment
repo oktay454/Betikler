@@ -85,6 +85,15 @@ $nrconf{restart} = 'a';
 NEEDRESTART_CONFIG
 
 ##########################################################################################
+# Unattended Upgrades'in otomatik tüm depoları güncellemesi
+##########################################################################################
+cat > "/etc/apt/apt.conf.d/51unattended-upgrades-all" <<\UNATTENDED_UPGRADES
+Unattended-Upgrade::Origins-Pattern {
+	"origin=*";
+};
+UNATTENDED_UPGRADES
+
+##########################################################################################
 # Kullanıma dair düzenlemeler
 ##########################################################################################
 cat > "/etc/vim/vimrc.local" << \VIM_CONFIG
@@ -792,6 +801,15 @@ apt-get install -y \
 cat > "/etc/needrestart/conf.d/90-automatic-restart.conf" <<\NEEDRESTART_CONFIG
 $nrconf{restart} = 'a';
 NEEDRESTART_CONFIG
+
+##########################################################################################
+# Unattended Upgrades'in otomatik tüm depoları güncellemesi
+##########################################################################################
+cat > "/etc/apt/apt.conf.d/51unattended-upgrades-all" <<\UNATTENDED_UPGRADES
+Unattended-Upgrade::Origins-Pattern {
+	"origin=*";
+};
+UNATTENDED_UPGRADES
 
 ##########################################################################################
 # Kullanıma dair düzenlemeler
